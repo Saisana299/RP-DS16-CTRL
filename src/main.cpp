@@ -11,10 +11,6 @@ Debug DEBUG(DEBUG_MODE, Serial2, 8, 9, BAUD_RATE);
 #define S2_TX_PIN 4
 #define S2_RX_PIN 5
 
-/******************DEBUG*******************/
-#define TX_INTERVAL 1000  // 送信間隔 (ミリ秒)
-/******************************************/
-
 void setup() {
     Serial.begin(BAUD_RATE);
 
@@ -32,12 +28,10 @@ void setup() {
 }
 
 void loop() {
-    digitalWrite(LED_BUILTIN, LOW);
-    delay(TX_INTERVAL / 2);
     digitalWrite(LED_BUILTIN, HIGH);
-    Serial.println("Serial");
-    Serial1.println("UART0");
-    delay(100);
-    Serial2.println("UART1");
-    delay(TX_INTERVAL / 2);
+    Serial1.println("261.63");//C4
+    delay(1000);
+    Serial2.println("329.63");//E4
+    digitalWrite(LED_BUILTIN, LOW);
+    delay(1000);
 }
