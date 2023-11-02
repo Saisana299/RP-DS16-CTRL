@@ -2,9 +2,9 @@
 
 class Debug {
 private:
+    SerialUART& debug_serial;
     bool initialized = false;
     bool debug_mode;
-    SerialUART& debug_serial;
     int TX_PIN, RX_PIN, BAUD_RATE;
 
 public:
@@ -34,5 +34,9 @@ public:
         if (debug_mode && initialized) {
             debug_serial.println(message);
         }
+    }
+
+    SerialUART getSerial() {
+        return debug_serial;
     }
 };
