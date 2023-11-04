@@ -16,14 +16,8 @@ Debug DEBUG(DEBUG_MODE, Serial2, 8, 9, 115200);
 
 void midiLoop();
 
-float midiNoteToFrequency(int midiNote) {
-    return 440.0 * pow(2.0, (midiNote - 69) / 12.0);
-}
-
-char* floatToString(float value, char* output) {
-    int wholePart = (int)value; // 整数部分
-    int decimalPart = (int)((value - wholePart) * 100); // 小数点以下2桁
-    sprintf(output, "%d.%02d", wholePart, decimalPart);
+char* intToString(int value, char* output) {
+    sprintf(output, "%d", value);
     return output;
 }
 
@@ -61,7 +55,7 @@ void loop() {
 }
 
 void midiLoop() {
-    char buffer[32];//todo
+    char buffer[32];
     while(1){
         if(Serial1.available()) {
             digitalWrite(LED_BUILTIN, HIGH);
@@ -80,14 +74,29 @@ void midiLoop() {
                             DEBUG.getSerial().print(note);
                             DEBUG.getSerial().print(" Velocity: ");
                             DEBUG.getSerial().println(velocity);
+
                             Wire.beginTransmission(S1_I2C_ADDR);
-                            float fq = midiNoteToFrequency(note);
-                            floatToString(fq, buffer);
-                            Wire.write(buffer);
+                            char* stringValue = intToString(note, buffer);
+                            Wire.write(stringValue);
                             Wire.endTransmission();
+
+                            Wire1.beginTransmission(S2_I2C_ADDR);
+                            stringValue = intToString(note+12, buffer);
+                            Wire1.write(stringValue);
+                            Wire1.endTransmission();
                         } else {
                             DEBUG.getSerial().print("Note Off: ");
                             DEBUG.getSerial().println(note);
+
+                            Wire.beginTransmission(S1_I2C_ADDR);
+                            char* stringValue = intToString(note+10000, buffer);
+                            Wire.write(stringValue);
+                            Wire.endTransmission();
+
+                            Wire1.beginTransmission(S2_I2C_ADDR);
+                            stringValue = intToString(note+12+10000, buffer);
+                            Wire1.write(stringValue);
+                            Wire1.endTransmission();
                         }
                     }
                 }
@@ -99,6 +108,16 @@ void midiLoop() {
                     Serial1.read(); // velocityも読み取るが、ここでは無視
                     DEBUG.getSerial().print("Note Off: ");
                     DEBUG.getSerial().println(note);
+
+                    Wire.beginTransmission(S1_I2C_ADDR);
+                    char* stringValue = intToString(note+10000, buffer);
+                    Wire.write(stringValue);
+                    Wire.endTransmission();
+
+                    Wire1.beginTransmission(S2_I2C_ADDR);
+                    stringValue = intToString(note+12+10000, buffer);
+                    Wire1.write(stringValue);
+                    Wire1.endTransmission();
                 }
             }
         }
