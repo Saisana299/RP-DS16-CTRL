@@ -1,37 +1,68 @@
 #include <Arduino.h>
+#include <Wire.h>
 #include <debug.h>
 
-#define BAUD_RATE 115200
-
 #define DEBUG_MODE 1 //0 or 1
-Debug DEBUG(DEBUG_MODE, Serial2, 8, 9, BAUD_RATE);
+Debug DEBUG(DEBUG_MODE, Serial2, 8, 9, 115200);
 
-#define S1_TX_PIN 16
-#define S1_RX_PIN 17
-#define S2_TX_PIN 4
-#define S2_RX_PIN 5
+#define S1_SDA_PIN 12
+#define S1_SCL_PIN 13
+#define S1_I2C_ADDR 0x08
+#define S2_SDA_PIN 2
+#define S2_SCL_PIN 3
+#define S2_I2C_ADDR 0x09
+
+#define MIDI_RX_PIN 17
+
+void midiLoop();
+
+float midiNoteToFrequency(int midiNote) {
+    return 440.0 * pow(2.0, (midiNote - 69) / 12.0);
+}
+
+char* floatToString(float value, char* output) {
+    int wholePart = (int)value; // 整数部分
+    int decimalPart = (int)((value - wholePart) * 100); // 小数点以下2桁
+    sprintf(output, "%d.%02d", wholePart, decimalPart);
+    return output;
+}
 
 void setup() {
-    Serial1.setRX(S1_RX_PIN);
-    Serial1.setTX(S1_TX_PIN);
-    #if DEBUG_MODE == 1
-        Serial1.begin(31250);
-    #else
-        Serial1.beginn(BAUD_RATE);
-    #endif
+    Wire.setSDA(S1_SDA_PIN);
+    Wire.setSCL(S1_SCL_PIN);
+    Wire1.setSDA(S2_SDA_PIN);
+    Wire1.setSCL(S2_SCL_PIN);
 
-    #if DEBUG_MODE == 0
-        Serial2.setTX(S2_TX_PIN);
-        Serial2.begin(BAUD_RATE);
-    #endif
+    Wire.begin();
+    Wire1.begin();
+
+    Serial1.setRX(MIDI_RX_PIN);
+    Serial1.begin(31250);
     
     DEBUG.init();
 
     pinMode(LED_BUILTIN, OUTPUT);
+
+    multicore_launch_core1(midiLoop);
 }
 
 void loop() {
-    #if DEBUG_MODE == 1
+    delay(10);
+    /*
+    delay(1000);
+    Wire.beginTransmission(S1_I2C_ADDR);
+    Wire.write("523.25");
+    Wire.endTransmission();
+    Wire1.beginTransmission(S2_I2C_ADDR);
+    Wire1.write("659.255");
+    Wire1.endTransmission();
+    delay(1000);
+    */
+}
+
+void midiLoop() {
+    char buffer[32];//todo
+    while(1){
         if(Serial1.available()) {
             digitalWrite(LED_BUILTIN, HIGH);
             delay(10);
@@ -49,6 +80,11 @@ void loop() {
                             DEBUG.getSerial().print(note);
                             DEBUG.getSerial().print(" Velocity: ");
                             DEBUG.getSerial().println(velocity);
+                            Wire.beginTransmission(S1_I2C_ADDR);
+                            float fq = midiNoteToFrequency(note);
+                            floatToString(fq, buffer);
+                            Wire.write(buffer);
+                            Wire.endTransmission();
                         } else {
                             DEBUG.getSerial().print("Note Off: ");
                             DEBUG.getSerial().println(note);
@@ -66,12 +102,5 @@ void loop() {
                 }
             }
         }
-    #else
-        digitalWrite(LED_BUILTIN, HIGH);
-        Serial1.println("261.63");//C4
-        delay(1000);
-        Serial2.println("329.63");//E4
-        digitalWrite(LED_BUILTIN, LOW);
-        delay(1000);
-    #endif
+    }
 }
