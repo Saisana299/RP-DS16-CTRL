@@ -3,7 +3,7 @@
 #include <debug.h>
 
 #define DEBUG_MODE 1 //0 or 1
-Debug DEBUG(DEBUG_MODE, Serial2, 8, 9, 115200);
+Debug debug(DEBUG_MODE, Serial2, 8, 9, 115200);
 
 #define S1_SDA_PIN 26
 #define S1_SCL_PIN 27
@@ -12,12 +12,12 @@ Debug DEBUG(DEBUG_MODE, Serial2, 8, 9, 115200);
 #define S2_SCL_PIN 21
 #define S2_I2C_ADDR 0x09
 
-TwoWire& SYNTH1 = Wire1;
-TwoWire& SYNTH2 = Wire;
+TwoWire& synth1 = Wire1;
+TwoWire& synth2 = Wire;
 
 #define MIDI_RX_PIN 1
 
-SerialUART& MIDI = Serial1;
+SerialUART& midi = Serial1;
 
 void midiLoop();
 
@@ -26,19 +26,25 @@ char* intToString(int value, char* output) {
     return output;
 }
 
+void synthWrite(TwoWire synth, uint8_t addr, char* value) {
+    synth.beginTransmission(addr);
+    synth.write(value);
+    synth.endTransmission();
+}
+
 void setup() {
-    SYNTH1.setSDA(S1_SDA_PIN);
-    SYNTH1.setSCL(S1_SCL_PIN);
-    SYNTH2.setSDA(S2_SDA_PIN);
-    SYNTH2.setSCL(S2_SCL_PIN);
+    synth1.setSDA(S1_SDA_PIN);
+    synth1.setSCL(S1_SCL_PIN);
+    synth2.setSDA(S2_SDA_PIN);
+    synth2.setSCL(S2_SCL_PIN);
 
-    SYNTH1.begin();
-    SYNTH2.begin();
+    synth1.begin();
+    synth2.begin();
 
-    MIDI.setRX(MIDI_RX_PIN);
-    MIDI.begin(31250);
+    midi.setRX(MIDI_RX_PIN);
+    midi.begin(31250);
     
-    DEBUG.init();
+    debug.init();
 
     pinMode(LED_BUILTIN, OUTPUT);
 
@@ -52,67 +58,55 @@ void loop() {
 void midiLoop() {
     char buffer[32];
     while(1){
-        if(MIDI.available()) {
+        if(midi.available()) {
             digitalWrite(LED_BUILTIN, HIGH);
             delay(10);
             digitalWrite(LED_BUILTIN, LOW);
             
-            uint8_t statusByte = MIDI.read();
+            uint8_t statusByte = midi.read();
             // // ノートオンイベントの場合
             if ((statusByte & 0xF0) == 0x90) {
-                if (MIDI.available()) {
-                    uint8_t note = MIDI.read();
-                    if (MIDI.available()) {
-                        uint8_t velocity = MIDI.read();
+                if (midi.available()) {
+                    uint8_t note = midi.read();
+                    if (midi.available()) {
+                        uint8_t velocity = midi.read();
                         if (velocity != 0) {
-                            DEBUG.getSerial().print("Note On: ");
-                            DEBUG.getSerial().print(note);
-                            DEBUG.getSerial().print(" Velocity: ");
-                            DEBUG.getSerial().println(velocity);
+                            debug.getSerial().print("Note On: ");
+                            debug.getSerial().print(note);
+                            debug.getSerial().print(" Velocity: ");
+                            debug.getSerial().println(velocity);
 
-                            SYNTH1.beginTransmission(S1_I2C_ADDR);
                             char* stringValue = intToString(note, buffer);
-                            SYNTH1.write(stringValue);
-                            SYNTH1.endTransmission();
+                            synthWrite(synth1, S1_I2C_ADDR, stringValue);
 
-                            SYNTH2.beginTransmission(S2_I2C_ADDR);
                             stringValue = intToString(note+12, buffer);
-                            SYNTH2.write(stringValue);
-                            SYNTH2.endTransmission();
+                            synthWrite(synth2, S2_I2C_ADDR, stringValue);
                         } else {
-                            DEBUG.getSerial().print("Note Off: ");
-                            DEBUG.getSerial().println(note);
+                            debug.getSerial().print("Note Off: ");
+                            debug.getSerial().println(note);
 
-                            SYNTH1.beginTransmission(S1_I2C_ADDR);
                             char* stringValue = intToString(note+10000, buffer);
-                            SYNTH1.write(stringValue);
-                            SYNTH1.endTransmission();
+                            synthWrite(synth1, S1_I2C_ADDR, stringValue);
 
-                            SYNTH2.beginTransmission(S2_I2C_ADDR);
                             stringValue = intToString(note+12+10000, buffer);
-                            SYNTH2.write(stringValue);
-                            SYNTH2.endTransmission();
+                            synthWrite(synth2, S2_I2C_ADDR, stringValue);
                         }
                     }
                 }
             }
             // ノートオフイベントの場合
             else if ((statusByte & 0xF0) == 0x80) {
-                if (MIDI.available()) {
-                    uint8_t note = MIDI.read();
-                    MIDI.read(); // velocityも読み取るが、ここでは無視
-                    DEBUG.getSerial().print("Note Off: ");
-                    DEBUG.getSerial().println(note);
+                if (midi.available()) {
+                    uint8_t note = midi.read();
+                    midi.read(); // velocityも読み取るが、ここでは無視
+                    debug.getSerial().print("Note Off: ");
+                    debug.getSerial().println(note);
 
-                    SYNTH1.beginTransmission(S1_I2C_ADDR);
                     char* stringValue = intToString(note+10000, buffer);
-                    SYNTH1.write(stringValue);
-                    SYNTH1.endTransmission();
+                    synthWrite(synth1, S1_I2C_ADDR, stringValue);
 
-                    SYNTH2.beginTransmission(S2_I2C_ADDR);
                     stringValue = intToString(note+12+10000, buffer);
-                    SYNTH2.write(stringValue);
-                    SYNTH2.endTransmission();
+                    synthWrite(synth2, S2_I2C_ADDR, stringValue);
                 }
             }
         }
