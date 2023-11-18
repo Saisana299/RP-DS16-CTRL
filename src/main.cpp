@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include <SPISlave.h>
 #include <debug.h>
 
 // debug 関連
@@ -24,13 +23,8 @@ TwoWire& synth2 = Wire;
 SerialUART& midi = Serial1;
 
 // DISP 関連
-#define DISP_SCK 2
-#define DISP_TX 3
-#define DISP_RX 4
-#define DISP_CS 5
-
-SPISlaveClass& disp = SPISlave;
-SPISettings spisettings(1000000, MSBFIRST, SPI_MODE0);
+#define DISP_TX_PIN 4
+#define DISP_RX_PIN 5
 
 // その他
 int noteid = -1;
@@ -48,33 +42,6 @@ void synthWrite(TwoWire synth, uint8_t addr, char* value) {
     synth.endTransmission();
 }
 
-// SPI受信
-volatile bool recvBuffReady = false;
-char recvBuff[1024] = "";
-int recvIdx = 0;
-void recvCallback(uint8_t *data, size_t len) {
-    memcpy(recvBuff + recvIdx, data, len);
-    recvIdx += len;
-    if (recvIdx == sizeof(recvBuff)) {
-        recvBuffReady = true;
-        recvIdx = 0;
-    }
-}
-
-// SPI送信
-char sendBuff[1024];
-void sentCallback() {
-    memset(sendBuff, 0, sizeof(sendBuff));
-    if(recvBuffReady) {
-        // 受信内容によって返す値、処理する内容を決定
-        sprintf(sendBuff, "1");
-        recvBuffReady = false;
-    } else {  
-        sprintf(sendBuff, "0");
-    }
-    disp.setData((uint8_t*)sendBuff, sizeof(sendBuff));
-}
-
 void setup() {
     synth1.setSDA(S1_SDA_PIN);
     synth1.setSCL(S1_SCL_PIN);
@@ -87,13 +54,10 @@ void setup() {
     midi.setRX(MIDI_RX_PIN);
     midi.begin(31250);
 
-    disp.setRX(DISP_RX);
-    disp.setCS(DISP_CS);
-    disp.setSCK(DISP_SCK);
-    disp.setTX(DISP_TX);
-    disp.onDataRecv(recvCallback);
-    disp.onDataSent(sentCallback);
-    disp.begin(spisettings);
+    //todo
+    Serial2.setTX(DISP_TX_PIN);
+    Serial2.setRX(DISP_RX_PIN);
+    Serial2.begin(31250);
     
     debug.init();
 
@@ -112,7 +76,12 @@ void setup() {
 }
 
 void loop() {
-    // todo
+    if(Serial2.available()) {
+        Serial2.read();
+        digitalWrite(LED_BUILTIN, HIGH);
+        delay(10);
+        digitalWrite(LED_BUILTIN, LOW);
+    }
 }
 
 void midiLoop() {
