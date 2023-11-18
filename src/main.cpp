@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <Wire.h>
+#include <SPISlave.h>
 #include <debug.h>
 
 // debug 関連
@@ -23,13 +24,18 @@ TwoWire& synth2 = Wire;
 SerialUART& midi = Serial1;
 
 // DISP 関連
-#define DISP_TX_PIN 4
-#define DISP_RX_PIN 5
+#define DISP_SCK 2
+#define DISP_TX 3
+#define DISP_RX 4
+#define DISP_CS 5
+
+SPISlaveClass& disp = SPISlave;
+SPISettings spisettings(1000000, MSBFIRST, SPI_MODE0);
 
 // その他
 int noteid = -1;
 
-void midiLoop();
+void loop1();
 
 char* intToString(int value, char* output) {
     sprintf(output, "%d", value);
@@ -40,6 +46,33 @@ void synthWrite(TwoWire synth, uint8_t addr, char* value) {
     synth.beginTransmission(addr);
     synth.write(value);
     synth.endTransmission();
+}
+
+// SPI受信
+volatile bool recvBuffReady = false;
+char recvBuff[1024] = "";
+int recvIdx = 0;
+void recvCallback(uint8_t *data, size_t len) {
+    memcpy(recvBuff + recvIdx, data, len);
+    recvIdx += len;
+    if (recvIdx == sizeof(recvBuff)) {
+        recvBuffReady = true;
+        recvIdx = 0;
+    }
+}
+
+// SPI送信
+char sendBuff[1024];
+void sentCallback() {
+    memset(sendBuff, 0, sizeof(sendBuff));
+    if(recvBuffReady) {
+        // 受信内容によって返す値、処理する内容を決定
+        sprintf(sendBuff, "1");
+        recvBuffReady = false;
+    } else {  
+        sprintf(sendBuff, "0");
+    }
+    disp.setData((uint8_t*)sendBuff, sizeof(sendBuff));
 }
 
 void setup() {
@@ -54,16 +87,17 @@ void setup() {
     midi.setRX(MIDI_RX_PIN);
     midi.begin(31250);
 
-    //todo
-    Serial2.setTX(DISP_TX_PIN);
-    Serial2.setRX(DISP_RX_PIN);
-    Serial2.begin(31250);
+    disp.setRX(DISP_RX);
+    disp.setCS(DISP_CS);
+    disp.setSCK(DISP_SCK);
+    disp.setTX(DISP_TX);
+    disp.onDataRecv(recvCallback);
+    disp.onDataSent(sentCallback);
+    disp.begin(spisettings);
     
     debug.init();
 
     pinMode(LED_BUILTIN, OUTPUT);
-
-    multicore_launch_core1(midiLoop);
 
     // １音目にフェードアウトが適用されないため１音鳴らしておく
     char firstin[] = "0";
@@ -73,18 +107,13 @@ void setup() {
     delay(10);
     synthWrite(synth1, S1_I2C_ADDR, firstout);
     synthWrite(synth2, S2_I2C_ADDR, firstout);
+
+    multicore_launch_core1(loop1);
 }
 
-void loop() {
-    if(Serial2.available()) {
-        Serial2.read();
-        digitalWrite(LED_BUILTIN, HIGH);
-        delay(10);
-        digitalWrite(LED_BUILTIN, LOW);
-    }
-}
+void loop() {} // 使用しない
 
-void midiLoop() {
+void loop1() {
     char buffer[32];
     while(1){
         if(!midi.available()) {
@@ -92,8 +121,7 @@ void midiLoop() {
         }
 
         digitalWrite(LED_BUILTIN, HIGH);
-        delay(10);
-        digitalWrite(LED_BUILTIN, LOW);
+        delay(1);
         
         uint8_t statusByte = midi.read();
         // // ノートオンイベントの場合
@@ -144,6 +172,6 @@ void midiLoop() {
                 synthWrite(synth2, S2_I2C_ADDR, stringValue);
             }
         }
-        
+        digitalWrite(LED_BUILTIN, LOW);
     }
 }
