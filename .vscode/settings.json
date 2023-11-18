@@ -8,6 +8,11 @@
         "list": "cpp",
         "unordered_map": "cpp",
         "vector": "cpp",
-        "initializer_list": "cpp"
+        "initializer_list": "cpp",
+        "system_error": "cpp",
+        "exception": "cpp",
+        "limits": "cpp",
+        "ostream": "cpp",
+        "streambuf": "cpp"
     }
 }

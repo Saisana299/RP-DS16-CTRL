@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <Wire.h>
+#include <SPISlave.h>
 #include <debug.h>
 
 #define DEBUG_MODE 1 //0 or 1
@@ -19,6 +20,16 @@ TwoWire& synth2 = Wire;
 
 SerialUART& midi = Serial1;
 
+#define DISP_SCK 2
+#define DISP_TX 3
+#define DISP_RX 4
+#define DISP_CS 5
+
+SPISlaveClass& disp = SPISlave;
+SPISettings spisettings(1000000, MSBFIRST, SPI_MODE0);
+
+int noteid = -1;
+
 void midiLoop();
 
 char* intToString(int value, char* output) {
@@ -32,6 +43,35 @@ void synthWrite(TwoWire synth, uint8_t addr, char* value) {
     synth.endTransmission();
 }
 
+volatile bool recvBuffReady = false;
+char recvBuff[1024] = "";
+int recvIdx = 0;
+void recvCallback(uint8_t *data, size_t len) {
+    memcpy(recvBuff + recvIdx, data, len);
+    recvIdx += len;
+    if (recvIdx == sizeof(recvBuff)) {
+        recvBuffReady = true;
+        recvIdx = 0;
+    }
+}
+
+char sendBuff[1024];
+void sentCallback() {
+    memset(sendBuff, 0, sizeof(sendBuff));
+    if(recvBuffReady) {
+        if(String(recvBuff) == "note"){
+            if(noteid == -1) sprintf(sendBuff, "none");
+            else sprintf(sendBuff, "%d", noteid);
+        } else {  
+            sprintf(sendBuff, "ok");
+        }
+        recvBuffReady = false;
+    } else {  
+        sprintf(sendBuff, "ok");
+    }
+    disp.setData((uint8_t*)sendBuff, sizeof(sendBuff));
+}
+
 void setup() {
     synth1.setSDA(S1_SDA_PIN);
     synth1.setSCL(S1_SCL_PIN);
@@ -43,6 +83,14 @@ void setup() {
 
     midi.setRX(MIDI_RX_PIN);
     midi.begin(31250);
+
+    disp.setRX(DISP_RX);
+    disp.setCS(DISP_CS);
+    disp.setSCK(DISP_SCK);
+    disp.setTX(DISP_TX);
+    disp.onDataRecv(recvCallback);
+    disp.onDataSent(sentCallback);
+    disp.begin(spisettings);
     
     debug.init();
 
@@ -52,7 +100,7 @@ void setup() {
 }
 
 void loop() {
-    delay(10);
+    //
 }
 
 void midiLoop() {
@@ -75,6 +123,7 @@ void midiLoop() {
                             debug.getSerial().print(note);
                             debug.getSerial().print(" Velocity: ");
                             debug.getSerial().println(velocity);
+                            noteid = note;
 
                             char* stringValue = intToString(note, buffer);
                             synthWrite(synth1, S1_I2C_ADDR, stringValue);
