@@ -97,6 +97,15 @@ void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
 
     multicore_launch_core1(midiLoop);
+
+    // １音目にフェードアウトが適用されないため１音鳴らしておく
+    char firstin[] = "0";
+    char firstout[] = "10000";
+    synthWrite(synth1, S1_I2C_ADDR, firstin);
+    synthWrite(synth2, S2_I2C_ADDR, firstin);
+    delay(10);
+    synthWrite(synth1, S1_I2C_ADDR, firstout);
+    synthWrite(synth2, S2_I2C_ADDR, firstout);
 }
 
 void loop() {
