@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include <SPISlave.h>
 #include <debug.h>
 
 // debug 関連
@@ -24,16 +23,15 @@ TwoWire& synth2 = Wire;
 SerialUART& midi = Serial1;
 
 // DISP 関連
-#define DISP_SCK 2
-#define DISP_TX 3
-#define DISP_RX 4
-#define DISP_CS 5
+#define DISP_SW_PIN 11
+#define DISP_SDA_PIN 12
+#define DISP_SCL_PIN 13
+#define DISP_I2C_ADDR 0x0A
 
-SPISlaveClass& disp = SPISlave;
-SPISettings spisettings(1000000, MSBFIRST, SPI_MODE0);
+TwoWire& disp = Wire;
 
 // その他
-int noteid = -1;
+bool synthMode = true;
 
 void loop1();
 
@@ -48,31 +46,33 @@ void synthWrite(TwoWire synth, uint8_t addr, char* value) {
     synth.endTransmission();
 }
 
-// SPI受信
-volatile bool recvBuffReady = false;
-char recvBuff[1024] = "";
-int recvIdx = 0;
-void recvCallback(uint8_t *data, size_t len) {
-    memcpy(recvBuff + recvIdx, data, len);
-    recvIdx += len;
-    if (recvIdx == sizeof(recvBuff)) {
-        recvBuffReady = true;
-        recvIdx = 0;
+int a = 0;
+void receiveEvent(int bytes) {
+    while (disp.available()) {
+        char requestType = disp.read();
+        if (requestType == 'T') {
+            a = 8;
+        }
     }
 }
 
-// SPI送信
-char sendBuff[1024];
-void sentCallback() {
-    memset(sendBuff, 0, sizeof(sendBuff));
-    if(recvBuffReady) {
-        // 受信内容によって返す値、処理する内容を決定
-        sprintf(sendBuff, "1");
-        recvBuffReady = false;
-    } else {  
-        sprintf(sendBuff, "0");
-    }
-    disp.setData((uint8_t*)sendBuff, sizeof(sendBuff));
+void requestEvent() {
+    disp.write(a);
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(1000);
+    digitalWrite(LED_BUILTIN, LOW);
+}
+
+void dispISR() {
+    Wire.end();
+    disp.setSDA(DISP_SDA_PIN);
+    disp.setSCL(DISP_SCL_PIN);
+    disp.begin(DISP_I2C_ADDR);
+    disp.onReceive(receiveEvent);
+    disp.onRequest(requestEvent);
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(10);
+    digitalWrite(LED_BUILTIN, LOW);
 }
 
 void setup() {
@@ -86,14 +86,6 @@ void setup() {
 
     midi.setRX(MIDI_RX_PIN);
     midi.begin(31250);
-
-    disp.setRX(DISP_RX);
-    disp.setCS(DISP_CS);
-    disp.setSCK(DISP_SCK);
-    disp.setTX(DISP_TX);
-    disp.onDataRecv(recvCallback);
-    disp.onDataSent(sentCallback);
-    disp.begin(spisettings);
     
     debug.init();
 
@@ -107,6 +99,9 @@ void setup() {
     delay(10);
     synthWrite(synth1, S1_I2C_ADDR, firstout);
     synthWrite(synth2, S2_I2C_ADDR, firstout);
+
+    pinMode(DISP_SW_PIN, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(DISP_SW_PIN), dispISR, FALLING);
 
     multicore_launch_core1(loop1);
 }
@@ -139,7 +134,6 @@ void loop1() {
                 debug.getSerial().print(note);
                 debug.getSerial().print(" Velocity: ");
                 debug.getSerial().println(velocity);
-                noteid = note;
 
                 char* stringValue = intToString(note, buffer);
                 synthWrite(synth1, S1_I2C_ADDR, stringValue);
