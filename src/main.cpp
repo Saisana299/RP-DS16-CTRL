@@ -58,24 +58,11 @@ void receiveEvent(int bytes) {
 
 void requestEvent() {
     disp.write(a);
-    digitalWrite(LED_BUILTIN, HIGH);
-    delay(1000);
-    digitalWrite(LED_BUILTIN, LOW);
 }
 
-void dispISR() {
-    Wire.end();
-    disp.setSDA(DISP_SDA_PIN);
-    disp.setSCL(DISP_SCL_PIN);
-    disp.begin(DISP_I2C_ADDR);
-    disp.onReceive(receiveEvent);
-    disp.onRequest(requestEvent);
-    digitalWrite(LED_BUILTIN, HIGH);
-    delay(10);
-    digitalWrite(LED_BUILTIN, LOW);
-}
+void beginSynth() {
+    disp.end();
 
-void setup() {
     synth1.setSDA(S1_SDA_PIN);
     synth1.setSCL(S1_SCL_PIN);
     synth2.setSDA(S2_SDA_PIN);
@@ -83,6 +70,35 @@ void setup() {
 
     synth1.begin();
     synth2.begin();
+
+    synthMode = true;
+}
+
+void beginDisp() {
+    synth1.end();
+    synth2.end();
+
+    synthMode = false;
+
+    disp.setSDA(DISP_SDA_PIN);
+    disp.setSCL(DISP_SCL_PIN);
+    disp.begin(DISP_I2C_ADDR);
+    disp.onReceive(receiveEvent);
+    disp.onRequest(requestEvent);
+}
+
+void dispISR() {
+    if(synthMode) {
+        digitalWrite(LED_BUILTIN, HIGH);
+        beginDisp();
+    }else{
+        digitalWrite(LED_BUILTIN, LOW);
+        beginSynth();
+    }
+}
+
+void setup() {
+    beginSynth();
 
     midi.setRX(MIDI_RX_PIN);
     midi.begin(31250);
@@ -112,6 +128,9 @@ void loop1() {
     char buffer[32];
     while(1){
         if(!midi.available()) {
+            continue;
+        }
+        if(!synthMode) {
             continue;
         }
 
