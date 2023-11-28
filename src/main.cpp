@@ -3,7 +3,7 @@
 #include <debug.h>
 
 // debug 関連
-#define DEBUG_MODE 0 //0 or 1
+#define DEBUG_MODE 1 //0 or 1
 Debug debug(DEBUG_MODE, Serial2, 8, 9, 115200);
 
 // SYNTH 関連
@@ -46,18 +46,25 @@ void synthWrite(TwoWire synth, uint8_t addr, char* value) {
     synth.endTransmission();
 }
 
-int a = 0;
+String response = ""; // レスポンス用
 void receiveEvent(int bytes) {
+    int i = 0;
+    char receivedString[bytes];
     while (disp.available()) {
-        char requestType = disp.read();
-        if (requestType == 'T') {
-            a = 8;
+        char receivedChar = disp.read();
+        receivedString[i] = receivedChar;
+        i++;
+        if (i >= bytes) {
+            break;
         }
+    }
+    if (strncmp(receivedString, "connect", bytes) == 0) {
+        response = "connect:ok";
     }
 }
 
 void requestEvent() {
-    disp.write(a);
+    disp.write(strdup(response.c_str()));
 }
 
 void beginSynth() {
