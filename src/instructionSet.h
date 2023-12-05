@@ -18,5 +18,6 @@
 
 //// SYNTH送信用の命令コード (0x00と0xffは除外) 190~
 
-#define SYNTH_NOTE_ON  0xBE // ノートオン
-#define SYNTH_NOTE_OFF 0xBF // ノートオフ
+#define SYNTH_NOTE_ON    0xBE // ノートオン
+#define SYNTH_NOTE_OFF   0xBF // ノートオフ
+#define SYNTH_SET_PRESET 0xC0 // プリセット設定

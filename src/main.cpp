@@ -44,6 +44,8 @@ void synthWrite(TwoWire synth, uint8_t addr, const uint8_t * data, size_t size) 
 }
 
 uint8_t response = 0x00; // レスポンス用
+String synthCacheData = ""; // 次のSYNTH通信開始時に命令を送信するためのキャッシュ
+uint8_t synthCacheId = 0x00; // 〃送信対象
 void receiveEvent(int bytes) {
     // 2バイト以上のみ受け付ける
     if(bytes < 2) return;
@@ -70,8 +72,32 @@ void receiveEvent(int bytes) {
             response = RES_OK;
             break;
 
+        // 例: {INS_BEGIN, DISP_SET_PRESET, DATA_BEGIN, 0x02, 0x01, 0x01}
         case DISP_SET_PRESET:
-            response = RES_ERROR;
+            if(bytes < 6) {
+                response = RES_ERROR;
+                return;
+            }
+            if(receivedData[4] == 0x01) {
+                uint8_t data[] = {
+                    INS_BEGIN, SYNTH_SET_PRESET,
+                    DATA_BEGIN, 0x01, receivedData[5]
+                };
+                synthCacheId = 0x01;
+                for (uint8_t byte: data) {
+                    synthCacheData += static_cast<char>(byte);
+                }
+            }else if(receivedData[4] == 0x02) {
+                uint8_t data[] = {
+                    INS_BEGIN, SYNTH_SET_PRESET,
+                    DATA_BEGIN, 0x01, receivedData[5]
+                };
+                synthCacheId = 0x02;
+                for (uint8_t byte: data) {
+                    synthCacheData += static_cast<char>(byte);
+                }
+            }
+            response = RES_OK;
             break;
     }
 }
@@ -92,6 +118,22 @@ void beginSynth() {
     synth1.begin();
     synth2.begin();
 
+    // cache処理
+    if(!synthCacheData.equals("")) {
+        size_t size = synthCacheData.length();
+        uint8_t data[size];
+        for (int i = 0; i < size; i++) {
+            data[i] = static_cast<uint8_t>(synthCacheData[i]);
+        }
+        if (synthCacheId == 0x01) {
+            synthWrite(synth1, S1_I2C_ADDR, data, size);
+        } else if(synthCacheId == 0x02) {
+            synthWrite(synth2, S2_I2C_ADDR, data, size);
+        }
+        synthCacheData = "";
+        synthCacheId = 0x00;
+    }
+
     synthMode = true;
 }
 
@@ -99,13 +141,13 @@ void beginDisp() {
     synth1.end();
     synth2.end();
 
-    synthMode = false;
-
     disp.setSDA(DISP_SDA_PIN);
     disp.setSCL(DISP_SCL_PIN);
     disp.begin(DISP_I2C_ADDR);
     disp.onReceive(receiveEvent);
     disp.onRequest(requestEvent);
+
+    synthMode = false;
 }
 
 void dispISR() {
