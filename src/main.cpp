@@ -1,9 +1,11 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <debug.h>
+#include <midi1.h>
+#include <instructionSet.h>
 
 // debug 関連
-#define DEBUG_MODE 1 //0 or 1
+#define DEBUG_MODE 0 //0 or 1
 Debug debug(DEBUG_MODE, Serial2, 8, 9, 115200);
 
 // SYNTH 関連
@@ -35,36 +37,48 @@ bool synthMode = true;
 
 void loop1();
 
-char* intToString(int value, char* output) {
-    sprintf(output, "%d", value);
-    return output;
-}
-
-void synthWrite(TwoWire synth, uint8_t addr, char* value) {
+void synthWrite(TwoWire synth, uint8_t addr, const uint8_t * data, size_t size) {
     synth.beginTransmission(addr);
-    synth.write(value);
+    synth.write(data, size);
     synth.endTransmission();
 }
 
-String response = ""; // レスポンス用
+uint8_t response = 0x00; // レスポンス用
 void receiveEvent(int bytes) {
+    // 2バイト以上のみ受け付ける
+    if(bytes < 2) return;
+
     int i = 0;
-    char receivedString[bytes];
+    uint8_t receivedData[bytes];
     while (disp.available()) {
-        char receivedChar = disp.read();
-        receivedString[i] = receivedChar;
+        uint8_t received = disp.read();
+        receivedData[i] = received;
         i++;
         if (i >= bytes) {
             break;
         }
     }
-    if (strncmp(receivedString, "connect", bytes) == 0) {
-        response = "connect:ok";
+
+    uint8_t instruction = 0x00; // コード種別
+    if(receivedData[0] == INS_BEGIN) {
+        instruction = receivedData[1];
+    }
+
+    switch (instruction)
+    {
+        case DISP_CONNECT:
+            response = RES_OK;
+            break;
+
+        case DISP_SET_PRESET:
+            response = RES_ERROR;
+            break;
     }
 }
 
 void requestEvent() {
-    disp.write(strdup(response.c_str()));
+    disp.write(response);
+    response = 0x00;
 }
 
 void beginSynth() {
@@ -115,13 +129,13 @@ void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
 
     // １音目にフェードアウトが適用されないため１音鳴らしておく
-    char firstin[] = "0";
-    char firstout[] = "10000";
-    synthWrite(synth1, S1_I2C_ADDR, firstin);
-    synthWrite(synth2, S2_I2C_ADDR, firstin);
+    uint8_t firstin[] = {INS_BEGIN, SYNTH_NOTE_ON, DATA_BEGIN, 0x01, 0x00};
+    uint8_t firstout[] = {INS_BEGIN, SYNTH_NOTE_OFF, DATA_BEGIN, 0x01, 0x00};
+    synthWrite(synth1, S1_I2C_ADDR, firstin, sizeof(firstin));
+    synthWrite(synth2, S2_I2C_ADDR, firstin, sizeof(firstin));
     delay(10);
-    synthWrite(synth1, S1_I2C_ADDR, firstout);
-    synthWrite(synth2, S2_I2C_ADDR, firstout);
+    synthWrite(synth1, S1_I2C_ADDR, firstout, sizeof(firstout));
+    synthWrite(synth2, S2_I2C_ADDR, firstout, sizeof(firstout));
 
     pinMode(DISP_SW_PIN, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(DISP_SW_PIN), dispISR, FALLING);
@@ -146,50 +160,62 @@ void loop1() {
         
         uint8_t statusByte = midi.read();
         // // ノートオンイベントの場合
-        if ((statusByte & 0xF0) == 0x90) {
+        if ((statusByte & MIDI_EXCL) == MIDI_CH1_NOTE_ON) {
             if(!midi.available()) {
                 continue;
             }
+
             uint8_t note = midi.read();
             if(!midi.available()) {
                 continue;
             }
+
             uint8_t velocity = midi.read();
             if (velocity != 0) {
-                debug.getSerial().print("Note On: ");
-                debug.getSerial().print(note);
-                debug.getSerial().print(" Velocity: ");
-                debug.getSerial().println(velocity);
 
-                char* stringValue = intToString(note, buffer);
-                synthWrite(synth1, S1_I2C_ADDR, stringValue);
+                uint8_t data[] = {INS_BEGIN, SYNTH_NOTE_ON, DATA_BEGIN, 0x01, note};
+                synthWrite(synth1, S1_I2C_ADDR, data, sizeof(data));
 
-                stringValue = intToString(note+12, buffer);
-                synthWrite(synth2, S2_I2C_ADDR, stringValue);
+                uint8_t data1[] = {
+                    INS_BEGIN,
+                    SYNTH_NOTE_ON,
+                    DATA_BEGIN,
+                    0x01,
+                    static_cast<uint8_t>(note+0x0C)
+                };
+                synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data1));
             } else {
-                debug.getSerial().print("Note Off: ");
-                debug.getSerial().println(note);
 
-                char* stringValue = intToString(note+10000, buffer);
-                synthWrite(synth1, S1_I2C_ADDR, stringValue);
+                uint8_t data[] = {INS_BEGIN, SYNTH_NOTE_OFF, DATA_BEGIN, 0x01, note};
+                synthWrite(synth1, S1_I2C_ADDR, data, sizeof(data));
 
-                stringValue = intToString(note+12+10000, buffer);
-                synthWrite(synth2, S2_I2C_ADDR, stringValue);
+                uint8_t data1[] = {
+                    INS_BEGIN,
+                    SYNTH_NOTE_OFF,
+                    DATA_BEGIN,
+                    0x01,
+                    static_cast<uint8_t>(note+0x0C)
+                };
+                synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data1));
             }
         }
         // ノートオフイベントの場合
-        else if ((statusByte & 0xF0) == 0x80) {
+        else if ((statusByte & MIDI_EXCL) == MIDI_CH1_NOTE_OFF) {
             if (midi.available()) {
                 uint8_t note = midi.read();
                 midi.read(); // velocityも読み取るが、ここでは無視
-                debug.getSerial().print("Note Off: ");
-                debug.getSerial().println(note);
 
-                char* stringValue = intToString(note+10000, buffer);
-                synthWrite(synth1, S1_I2C_ADDR, stringValue);
+                uint8_t data[] = {INS_BEGIN, SYNTH_NOTE_OFF, DATA_BEGIN, 0x01, note};
+                synthWrite(synth1, S1_I2C_ADDR, data, sizeof(data));
 
-                stringValue = intToString(note+12+10000, buffer);
-                synthWrite(synth2, S2_I2C_ADDR, stringValue);
+                uint8_t data1[] = {
+                    INS_BEGIN,
+                    SYNTH_NOTE_OFF,
+                    DATA_BEGIN,
+                    0x01,
+                    static_cast<uint8_t>(note+0x0C)
+                };
+                synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data1));
             }
         }
         digitalWrite(LED_BUILTIN, LOW);
