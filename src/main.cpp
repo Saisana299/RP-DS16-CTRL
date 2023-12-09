@@ -33,7 +33,11 @@ SerialUART& midi = Serial1;
 TwoWire& disp = Wire;
 
 // その他
-bool synthMode = true;
+bool i2c_is_synth = true;
+#define SYNTH_SINGLE 0x00
+#define SYNTH_DUAL   0x01
+#define SYNTH_OCTAVE 0x02
+uint8_t synthMode = SYNTH_SINGLE;
 
 void loop1();
 
@@ -45,7 +49,7 @@ void synthWrite(TwoWire synth, uint8_t addr, const uint8_t * data, size_t size) 
 
 uint8_t response = 0x00; // レスポンス用
 String synthCacheData = ""; // 次のSYNTH通信開始時に命令を送信するためのキャッシュ
-uint8_t synthCacheId = 0x00; // 〃送信対象
+uint8_t synthCacheId = 0x00; // 〃送信対象(0xffはブロードキャスト)
 void receiveEvent(int bytes) {
     // 2バイト以上のみ受け付ける
     if(bytes < 2) return;
@@ -74,30 +78,38 @@ void receiveEvent(int bytes) {
 
         // 例: {INS_BEGIN, DISP_SET_PRESET, DATA_BEGIN, 0x02, 0x01, 0x01}
         case DISP_SET_PRESET:
+        {
             if(bytes < 6) {
                 response = RES_ERROR;
                 return;
             }
-            if(receivedData[4] == 0x01) {
-                uint8_t data[] = {
-                    INS_BEGIN, SYNTH_SET_PRESET,
-                    DATA_BEGIN, 0x01, receivedData[5]
-                };
-                synthCacheId = 0x01;
-                for (uint8_t byte: data) {
-                    synthCacheData += static_cast<char>(byte);
-                }
-            }else if(receivedData[4] == 0x02) {
-                uint8_t data[] = {
-                    INS_BEGIN, SYNTH_SET_PRESET,
-                    DATA_BEGIN, 0x01, receivedData[5]
-                };
-                synthCacheId = 0x02;
-                for (uint8_t byte: data) {
-                    synthCacheData += static_cast<char>(byte);
-                }
+            uint8_t data[] = {
+                INS_BEGIN, SYNTH_SET_PRESET,
+                DATA_BEGIN, 0x01, receivedData[5]
+            };
+            synthCacheId = receivedData[4];
+            for (uint8_t byte: data) {
+                synthCacheData += static_cast<char>(byte);
             }
             response = RES_OK;
+        }
+            break;
+
+        // 例: {INS_BEGIN, DISP_SET_SYNTH, DATA_BEGIN, 0x01, 0x02}
+        case DISP_SET_SYNTH:
+        {
+            if(bytes < 5) {
+                response = RES_ERROR;
+                return;
+            }
+            synthMode = receivedData[4];
+            uint8_t data[] = {INS_BEGIN, SYNTH_SOUND_STOP};
+            synthCacheId = 0xff;
+            for (uint8_t byte: data) {
+                synthCacheData += static_cast<char>(byte);
+            }
+            response = RES_OK;
+        }
             break;
     }
 }
@@ -129,12 +141,15 @@ void beginSynth() {
             synthWrite(synth1, S1_I2C_ADDR, data, size);
         } else if(synthCacheId == 0x02) {
             synthWrite(synth2, S2_I2C_ADDR, data, size);
+        } else if(synthCacheId == 0xff) {
+            synthWrite(synth1, S1_I2C_ADDR, data, size);
+            synthWrite(synth2, S2_I2C_ADDR, data, size);
         }
         synthCacheData = "";
         synthCacheId = 0x00;
     }
 
-    synthMode = true;
+    i2c_is_synth = true;
 }
 
 void beginDisp() {
@@ -147,11 +162,11 @@ void beginDisp() {
     disp.onReceive(receiveEvent);
     disp.onRequest(requestEvent);
 
-    synthMode = false;
+    i2c_is_synth = false;
 }
 
 void dispISR() {
-    if(synthMode) {
+    if(i2c_is_synth) {
         digitalWrite(LED_BUILTIN, HIGH);
         beginDisp();
     }else{
@@ -169,6 +184,8 @@ void setup() {
     debug.init();
 
     pinMode(LED_BUILTIN, OUTPUT);
+
+    delay(10);
 
     // １音目にフェードアウトが適用されないため１音鳴らしておく
     uint8_t firstin[] = {INS_BEGIN, SYNTH_NOTE_ON, DATA_BEGIN, 0x01, 0x00};
@@ -193,7 +210,7 @@ void loop1() {
         if(!midi.available()) {
             continue;
         }
-        if(!synthMode) {
+        if(!i2c_is_synth) {
             continue;
         }
 
@@ -214,31 +231,44 @@ void loop1() {
 
             uint8_t velocity = midi.read();
             if (velocity != 0) {
-
                 uint8_t data[] = {INS_BEGIN, SYNTH_NOTE_ON, DATA_BEGIN, 0x01, note};
                 synthWrite(synth1, S1_I2C_ADDR, data, sizeof(data));
 
-                uint8_t data1[] = {
-                    INS_BEGIN,
-                    SYNTH_NOTE_ON,
-                    DATA_BEGIN,
-                    0x01,
-                    static_cast<uint8_t>(note+0x0C)
-                };
-                synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data1));
+                if(synthMode == SYNTH_DUAL) {
+                    uint8_t data1[] = {INS_BEGIN, SYNTH_NOTE_ON, DATA_BEGIN, 0x01, note};
+                    synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data1));
+                }
+
+                if(synthMode == SYNTH_OCTAVE) {
+                    uint8_t data1[] = {
+                        INS_BEGIN,
+                        SYNTH_NOTE_ON,
+                        DATA_BEGIN,
+                        0x01,
+                        static_cast<uint8_t>(note+0x0C)
+                    };
+                    synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data1));
+                }
             } else {
 
                 uint8_t data[] = {INS_BEGIN, SYNTH_NOTE_OFF, DATA_BEGIN, 0x01, note};
                 synthWrite(synth1, S1_I2C_ADDR, data, sizeof(data));
 
-                uint8_t data1[] = {
-                    INS_BEGIN,
-                    SYNTH_NOTE_OFF,
-                    DATA_BEGIN,
-                    0x01,
-                    static_cast<uint8_t>(note+0x0C)
-                };
-                synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data1));
+                if(synthMode == SYNTH_DUAL) {
+                    uint8_t data1[] = {INS_BEGIN, SYNTH_NOTE_OFF, DATA_BEGIN, 0x01, note};
+                    synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data));
+                }
+
+                if(synthMode == SYNTH_OCTAVE) {
+                    uint8_t data1[] = {
+                        INS_BEGIN,
+                        SYNTH_NOTE_OFF,
+                        DATA_BEGIN,
+                        0x01,
+                        static_cast<uint8_t>(note+0x0C)
+                    };
+                    synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data1));
+                }
             }
         }
         // ノートオフイベントの場合
@@ -250,14 +280,21 @@ void loop1() {
                 uint8_t data[] = {INS_BEGIN, SYNTH_NOTE_OFF, DATA_BEGIN, 0x01, note};
                 synthWrite(synth1, S1_I2C_ADDR, data, sizeof(data));
 
-                uint8_t data1[] = {
-                    INS_BEGIN,
-                    SYNTH_NOTE_OFF,
-                    DATA_BEGIN,
-                    0x01,
-                    static_cast<uint8_t>(note+0x0C)
-                };
-                synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data1));
+                if(synthMode == SYNTH_DUAL) {
+                    uint8_t data1[] = {INS_BEGIN, SYNTH_NOTE_OFF, DATA_BEGIN, 0x01, note};
+                    synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data));
+                }
+
+                if(synthMode == SYNTH_OCTAVE) {
+                    uint8_t data1[] = {
+                        INS_BEGIN,
+                        SYNTH_NOTE_OFF,
+                        DATA_BEGIN,
+                        0x01,
+                        static_cast<uint8_t>(note+0x0C)
+                    };
+                    synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data1));
+                }
             }
         }
         digitalWrite(LED_BUILTIN, LOW);

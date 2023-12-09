@@ -14,6 +14,7 @@
 
 #define DISP_CONNECT    0x3F // 接続開始
 #define DISP_SET_PRESET 0x40 // プリセットを設定
+#define DISP_SET_SYNTH  0x41 // シンセモード設定
 
 
 //// SYNTH送信用の命令コード (0x00と0xffは除外) 190~
@@ -21,3 +22,4 @@
 #define SYNTH_NOTE_ON    0xBE // ノートオン
 #define SYNTH_NOTE_OFF   0xBF // ノートオフ
 #define SYNTH_SET_PRESET 0xC0 // プリセット設定
+#define SYNTH_SOUND_STOP 0xC1 // 音の再生を停止する
