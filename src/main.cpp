@@ -5,7 +5,7 @@
 #include <instructionSet.h>
 
 // debug 関連
-#define DEBUG_MODE 0 //0 or 1
+#define DEBUG_MODE 1 //0 or 1
 Debug debug(DEBUG_MODE, Serial2, 8, 9, 115200);
 
 // SYNTH 関連
@@ -205,7 +205,6 @@ void setup() {
 void loop() {} // 使用しない
 
 void loop1() {
-    char buffer[32];
     while(1){
         if(!midi.available()) {
             continue;
@@ -215,88 +214,53 @@ void loop1() {
         }
 
         digitalWrite(LED_BUILTIN, HIGH);
-        delay(1);
-        
+
         uint8_t statusByte = midi.read();
-        // // ノートオンイベントの場合
-        if ((statusByte & MIDI_EXCL) == MIDI_CH1_NOTE_ON) {
-            if(!midi.available()) {
-                continue;
+        // // CH1 ノートオン・オフイベントの場合
+        if ((statusByte & MIDI_EXCL) == MIDI_CH1_NOTE_ON ||
+            (statusByte & MIDI_EXCL) == MIDI_CH1_NOTE_OFF) {
+                
+            unsigned long startTime = millis();
+            while(!midi.available()) {
+                if(millis() - startTime > 100) {
+                    break;
+                }
             }
-
+            if(!midi.available()) continue;
             uint8_t note = midi.read();
-            if(!midi.available()) {
-                continue;
-            }
 
+            startTime = millis();
+            while(!midi.available()) {
+                if(millis() - startTime > 100) {
+                    break;
+                }
+            }
+            if(!midi.available()) continue;
             uint8_t velocity = midi.read();
-            if (velocity != 0) {
-                uint8_t data[] = {INS_BEGIN, SYNTH_NOTE_ON, DATA_BEGIN, 0x01, note};
-                synthWrite(synth1, S1_I2C_ADDR, data, sizeof(data));
 
-                if(synthMode == SYNTH_DUAL) {
-                    uint8_t data1[] = {INS_BEGIN, SYNTH_NOTE_ON, DATA_BEGIN, 0x01, note};
-                    synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data1));
-                }
+            bool noteOn = (statusByte & MIDI_EXCL) == MIDI_CH1_NOTE_ON && velocity != 0;
+            uint8_t command = noteOn ? SYNTH_NOTE_ON : SYNTH_NOTE_OFF;
 
-                if(synthMode == SYNTH_OCTAVE) {
-                    uint8_t data1[] = {
-                        INS_BEGIN,
-                        SYNTH_NOTE_ON,
-                        DATA_BEGIN,
-                        0x01,
-                        static_cast<uint8_t>(note+0x0C)
-                    };
-                    synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data1));
-                }
-            } else {
+            uint8_t data[] = {INS_BEGIN, command, DATA_BEGIN, 0x01, note};
+            synthWrite(synth1, S1_I2C_ADDR, data, sizeof(data));
 
-                uint8_t data[] = {INS_BEGIN, SYNTH_NOTE_OFF, DATA_BEGIN, 0x01, note};
-                synthWrite(synth1, S1_I2C_ADDR, data, sizeof(data));
+            if(synthMode == SYNTH_DUAL) {
+                uint8_t data1[] = {INS_BEGIN, command, DATA_BEGIN, 0x01, note};
+                synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data1));
+            }
 
-                if(synthMode == SYNTH_DUAL) {
-                    uint8_t data1[] = {INS_BEGIN, SYNTH_NOTE_OFF, DATA_BEGIN, 0x01, note};
-                    synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data));
-                }
-
-                if(synthMode == SYNTH_OCTAVE) {
-                    uint8_t data1[] = {
-                        INS_BEGIN,
-                        SYNTH_NOTE_OFF,
-                        DATA_BEGIN,
-                        0x01,
-                        static_cast<uint8_t>(note+0x0C)
-                    };
-                    synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data1));
-                }
+            if(synthMode == SYNTH_OCTAVE) {
+                uint8_t data1[] = {
+                    INS_BEGIN,
+                    command,
+                    DATA_BEGIN,
+                    0x01,
+                    static_cast<uint8_t>(note+0x0C)
+                };
+                synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data1));
             }
         }
-        // ノートオフイベントの場合
-        else if ((statusByte & MIDI_EXCL) == MIDI_CH1_NOTE_OFF) {
-            if (midi.available()) {
-                uint8_t note = midi.read();
-                midi.read(); // velocityも読み取るが、ここでは無視
-
-                uint8_t data[] = {INS_BEGIN, SYNTH_NOTE_OFF, DATA_BEGIN, 0x01, note};
-                synthWrite(synth1, S1_I2C_ADDR, data, sizeof(data));
-
-                if(synthMode == SYNTH_DUAL) {
-                    uint8_t data1[] = {INS_BEGIN, SYNTH_NOTE_OFF, DATA_BEGIN, 0x01, note};
-                    synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data));
-                }
-
-                if(synthMode == SYNTH_OCTAVE) {
-                    uint8_t data1[] = {
-                        INS_BEGIN,
-                        SYNTH_NOTE_OFF,
-                        DATA_BEGIN,
-                        0x01,
-                        static_cast<uint8_t>(note+0x0C)
-                    };
-                    synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data1));
-                }
-            }
-        }
+        delay(1);
         digitalWrite(LED_BUILTIN, LOW);
     }
 }

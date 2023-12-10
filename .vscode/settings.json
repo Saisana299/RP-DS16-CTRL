@@ -13,6 +13,7 @@
         "exception": "cpp",
         "limits": "cpp",
         "ostream": "cpp",
-        "streambuf": "cpp"
+        "streambuf": "cpp",
+        "cstddef": "cpp"
     }
 }
