@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <debug.h>
-#include <midi1.h>
+#include <midi1msg.h>
 #include <instructionSet.h>
 
 // debug 関連
@@ -37,6 +37,7 @@ bool i2c_is_synth = true;
 #define SYNTH_SINGLE 0x00
 #define SYNTH_DUAL   0x01
 #define SYNTH_OCTAVE 0x02
+#define SYNTH_MULTI  0x03
 uint8_t synthMode = SYNTH_SINGLE;
 
 void loop1();
@@ -175,6 +176,17 @@ void dispISR() {
     }
 }
 
+bool availableMIDI(uint8_t timeout = 100) {
+    unsigned long startTime = millis();
+    while(!midi.available()) {
+        if(millis() - startTime > timeout) {
+            break;
+        }
+    }
+    if(!midi.available()) return false;
+    return true;
+}
+
 void setup() {
     beginSynth();
 
@@ -216,48 +228,51 @@ void loop1() {
         digitalWrite(LED_BUILTIN, HIGH);
 
         uint8_t statusByte = midi.read();
-        // // CH1 ノートオン・オフイベントの場合
-        if ((statusByte & MIDI_EXCL) == MIDI_CH1_NOTE_ON ||
-            (statusByte & MIDI_EXCL) == MIDI_CH1_NOTE_OFF) {
+        // ノートオン・オフイベントの場合
+        if (statusByte == MIDI_CH1_NOTE_ON  || statusByte == MIDI_CH1_NOTE_OFF ||
+            statusByte == MIDI_CH2_NOTE_ON  || statusByte == MIDI_CH2_NOTE_OFF ) {
                 
-            unsigned long startTime = millis();
-            while(!midi.available()) {
-                if(millis() - startTime > 100) {
-                    break;
-                }
-            }
-            if(!midi.available()) continue;
+            if(!availableMIDI()) continue;
             uint8_t note = midi.read();
 
-            startTime = millis();
-            while(!midi.available()) {
-                if(millis() - startTime > 100) {
-                    break;
-                }
-            }
-            if(!midi.available()) continue;
+            if(!availableMIDI()) continue;
             uint8_t velocity = midi.read();
 
-            bool noteOn = (statusByte & MIDI_EXCL) == MIDI_CH1_NOTE_ON && velocity != 0;
+            uint8_t midiChannel = 1;
+            if( statusByte == MIDI_CH2_NOTE_ON  ||
+                statusByte == MIDI_CH2_NOTE_OFF ) {
+                midiChannel = 2;
+            }
+            bool noteOn = (
+                statusByte == MIDI_CH1_NOTE_ON ||
+                statusByte == MIDI_CH2_NOTE_ON ) && velocity != 0;
             uint8_t command = noteOn ? SYNTH_NOTE_ON : SYNTH_NOTE_OFF;
 
-            uint8_t data[] = {INS_BEGIN, command, DATA_BEGIN, 0x01, note};
-            synthWrite(synth1, S1_I2C_ADDR, data, sizeof(data));
-
-            if(synthMode == SYNTH_DUAL) {
-                uint8_t data1[] = {INS_BEGIN, command, DATA_BEGIN, 0x01, note};
-                synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data1));
+            if(midiChannel == 1) {
+                uint8_t data1[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
+                synthWrite(synth1, S1_I2C_ADDR, data1, sizeof(data1));
             }
 
-            if(synthMode == SYNTH_OCTAVE) {
-                uint8_t data1[] = {
+            if(synthMode == SYNTH_DUAL) {
+                uint8_t data2[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
+                synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
+            }
+
+            else if(synthMode == SYNTH_OCTAVE) {
+                uint8_t data2[] = {
                     INS_BEGIN,
                     command,
                     DATA_BEGIN,
-                    0x01,
-                    static_cast<uint8_t>(note+0x0C)
+                    0x02,
+                    static_cast<uint8_t>(note+0x0C),
+                    velocity
                 };
-                synthWrite(synth2, S2_I2C_ADDR, data1, sizeof(data1));
+                synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
+            }
+
+            else if(synthMode == SYNTH_MULTI && midiChannel == 2) {
+                uint8_t data2[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
+                synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
             }
         }
         delay(1);
