@@ -200,8 +200,8 @@ void setup() {
     delay(10);
 
     // １音目にフェードアウトが適用されないため１音鳴らしておく
-    uint8_t firstin[] = {INS_BEGIN, SYNTH_NOTE_ON, DATA_BEGIN, 0x01, 0x00};
-    uint8_t firstout[] = {INS_BEGIN, SYNTH_NOTE_OFF, DATA_BEGIN, 0x01, 0x00};
+    uint8_t firstin[] = {INS_BEGIN, SYNTH_NOTE_ON, DATA_BEGIN, 0x02, 0x00, 0x00};
+    uint8_t firstout[] = {INS_BEGIN, SYNTH_NOTE_OFF, DATA_BEGIN, 0x02, 0x00, 0x00};
     synthWrite(synth1, S1_I2C_ADDR, firstin, sizeof(firstin));
     synthWrite(synth2, S2_I2C_ADDR, firstin, sizeof(firstin));
     delay(10);
