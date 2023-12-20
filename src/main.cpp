@@ -34,10 +34,6 @@ TwoWire& disp = Wire;
 
 // その他
 bool i2c_is_synth = true;
-#define SYNTH_SINGLE 0x00
-#define SYNTH_DUAL   0x01
-#define SYNTH_OCTAVE 0x02
-#define SYNTH_MULTI  0x03
 uint8_t synthMode = SYNTH_SINGLE;
 
 void loop1();
@@ -106,6 +102,25 @@ void receiveEvent(int bytes) {
             synthMode = receivedData[4];
             uint8_t data[] = {INS_BEGIN, SYNTH_SOUND_STOP};
             synthCacheId = 0xff;
+            for (uint8_t byte: data) {
+                synthCacheData += static_cast<char>(byte);
+            }
+            response = RES_OK;
+        }
+            break;
+
+        // 例: {INS_BEGIN, DISP_SET_PAN, DATA_BEGIN, 0x02, 0x02, 0x01}
+        case DISP_SET_PAN:
+        {
+            if(bytes < 6) {
+                response = RES_ERROR;
+                return;
+            }
+            uint8_t data[] = {
+                INS_BEGIN, SYNTH_SET_PAN,
+                DATA_BEGIN, 0x01, receivedData[5]
+            };
+            synthCacheId = receivedData[4];
             for (uint8_t byte: data) {
                 synthCacheData += static_cast<char>(byte);
             }
@@ -253,12 +268,12 @@ void loop1() {
                 synthWrite(synth1, S1_I2C_ADDR, data1, sizeof(data1));
             }
 
-            if(synthMode == SYNTH_DUAL) {
+            if(midiChannel == 1 && synthMode == SYNTH_DUAL) {
                 uint8_t data2[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
                 synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
             }
 
-            else if(synthMode == SYNTH_OCTAVE) {
+            else if(midiChannel == 1 && synthMode == SYNTH_OCTAVE) {
                 uint8_t data2[] = {
                     INS_BEGIN,
                     command,
@@ -270,7 +285,7 @@ void loop1() {
                 synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
             }
 
-            else if(synthMode == SYNTH_MULTI && midiChannel == 2) {
+            else if(midiChannel == 2 && synthMode == SYNTH_MULTI) {
                 uint8_t data2[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
                 synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
             }
