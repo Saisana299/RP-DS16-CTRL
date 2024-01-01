@@ -30,11 +30,9 @@
 // 2nd:Ctrl no.[0-119] or Mode no.[120-127] 3rd:data[0-127]
 #define MIDI_CH1_CTRL_MODE_CHANGE 0xB0
     // CTRL CHANGE //
-
     #define CTRL_CHG_SUSTAIN 0x40 // OFF 
 
     // MODE CHANGE //
-
     #define MODE_CHG_SOUND_OFF  0x78 // 0
     #define MODE_CHG_RESET_CTRL 0x79 // 0
     #define MODE_CHG_LC_CTRL    0x7A // 0,127

@@ -36,6 +36,15 @@ TwoWire& disp = Wire;
 bool i2c_is_synth = true;
 uint8_t synthMode = SYNTH_SINGLE;
 
+// モードチェンジ時にリセットする
+struct Note {
+    uint8_t num;
+    uint8_t id;
+    uint8_t synth;
+};
+static const int MAX_NOTES = 8;
+Note notes[MAX_NOTES];
+
 void loop1();
 
 void synthWrite(TwoWire synth, uint8_t addr, const uint8_t * data, size_t size) {
@@ -203,6 +212,13 @@ bool availableMIDI(uint8_t timeout = 100) {
 }
 
 void setup() {
+    // 初期化
+    for(Note note: notes) {
+        note.num = 0;
+        note.id = 0xFF;
+        note.synth = 0;
+    }
+
     beginSynth();
 
     midi.setRX(MIDI_RX_PIN);
@@ -263,16 +279,32 @@ void loop1() {
                 statusByte == MIDI_CH2_NOTE_ON ) && velocity != 0;
             uint8_t command = noteOn ? SYNTH_NOTE_ON : SYNTH_NOTE_OFF;
 
-            if(midiChannel == 1) {
+        // 鳴らすシンセID=1 //
+            // シングルモード以外で ch=1 (鳴らすのはsynth1)
+            if(midiChannel == 1 && synthMode != SYNTH_SINGLE) {
                 uint8_t data1[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
                 synthWrite(synth1, S1_I2C_ADDR, data1, sizeof(data1));
             }
+            // シングルモードで ch=1
+            else if(midiChannel == 1 && synthMode == SYNTH_SINGLE) {
+                // noteOnの場合
+                if(command == SYNTH_NOTE_ON) {
+                    //
+                }
 
+                // noteOffの場合
+                else if(command == SYNTH_NOTE_OFF) {
+                    //
+                }
+            }
+
+        // 鳴らすシンセID=2 //
+            // デュアルモードで ch=1
             if(midiChannel == 1 && synthMode == SYNTH_DUAL) {
                 uint8_t data2[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
                 synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
             }
-
+            // オクターブモードで ch=1
             else if(midiChannel == 1 && synthMode == SYNTH_OCTAVE) {
                 uint8_t data2[] = {
                     INS_BEGIN,
@@ -284,7 +316,7 @@ void loop1() {
                 };
                 synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
             }
-
+            // マルチモードで ch=2
             else if(midiChannel == 2 && synthMode == SYNTH_MULTI) {
                 uint8_t data2[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
                 synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
