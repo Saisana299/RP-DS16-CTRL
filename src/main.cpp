@@ -141,6 +141,22 @@ void receiveEvent(int bytes) {
             response = RES_OK;
         }
             break;
+
+        // 例: {INS_BEGIN, DISP_RESET_SYNTH, DATA_BEGIN, 0x01, 0xff}
+        case DISP_RESET_SYNTH:
+        {
+            if(bytes < 5) {
+                response = RES_ERROR;
+                return;
+            }
+            uint8_t data[] = {INS_BEGIN, SYNTH_SOUND_STOP};
+            synthCacheId = receivedData[4];
+            for (uint8_t byte: data) {
+                synthCacheData += static_cast<char>(byte);
+            }
+            response = RES_OK;
+        }
+            break;
     }
 }
 
