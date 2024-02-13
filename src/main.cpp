@@ -297,15 +297,15 @@ void loop1() {
                     //
                 }
             }
+            // デュアルモードで ch=1
+            else if(midiChannel == 1 && synthMode == SYNTH_DUAL) {
+                uint8_t data1[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
+                synthWrite(synth1, S1_I2C_ADDR, data1, sizeof(data1));
+            }
 
         // 鳴らすシンセID=2 //
-            // デュアルモードで ch=1
-            if(midiChannel == 1 && synthMode == SYNTH_DUAL) {
-                uint8_t data2[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
-                synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
-            }
             // オクターブモードで ch=1
-            else if(midiChannel == 1 && synthMode == SYNTH_OCTAVE) {
+            if(midiChannel == 1 && synthMode == SYNTH_OCTAVE) {
                 uint8_t data2[] = {
                     INS_BEGIN,
                     command,
@@ -318,6 +318,11 @@ void loop1() {
             }
             // マルチモードで ch=2
             else if(midiChannel == 2 && synthMode == SYNTH_MULTI) {
+                uint8_t data2[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
+                synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
+            }
+            // デュアルモードで ch=1
+            else if(midiChannel == 1 && synthMode == SYNTH_DUAL) {
                 uint8_t data2[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
                 synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
             }

@@ -26,6 +26,6 @@
 
 //// 共通シンセ演奏状態コード
 #define SYNTH_SINGLE 0x00
-#define SYNTH_DUAL   0x01
-#define SYNTH_OCTAVE 0x02
+#define SYNTH_OCTAVE 0x01
+#define SYNTH_DUAL 0x02
 #define SYNTH_MULTI  0x03
