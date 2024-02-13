@@ -40,7 +40,7 @@ uint8_t synthMode = SYNTH_SINGLE;
 struct Note {
     uint8_t num;
     uint8_t id;
-    uint8_t synth;
+    uint8_t synth; //0x01-0x02
 };
 static const int MAX_NOTES = 8;
 Note notes[MAX_NOTES];
@@ -109,6 +109,11 @@ void receiveEvent(int bytes) {
                 return;
             }
             synthMode = receivedData[4];
+            for(Note note: notes) {
+                note.num = 0;
+                note.id = 0xff;
+                note.synth = 0;
+            }
             uint8_t data[] = {INS_BEGIN, SYNTH_SOUND_STOP};
             synthCacheId = 0xff;
             for (uint8_t byte: data) {
@@ -211,11 +216,95 @@ bool availableMIDI(uint8_t timeout = 100) {
     return true;
 }
 
+// notes から指定したノートのインデックスを返す
+int8_t getNotesIndex(uint8_t note) {
+    int8_t index = -1;
+    for(int8_t i = 0; i < MAX_NOTES; i++) {
+        if(notes[i].id == note) index = i;
+    }
+    return index;
+}
+
+// notesにノートを記録
+int8_t setNotesNote(uint8_t note) {
+    int8_t index = getNotesIndex(note);
+    if(index != -1) return -1;
+    int8_t synth = -1;
+    
+    // synthの割り当て確認
+    uint8_t count1 = 0;
+    uint8_t count2 = 0;
+    for(uint8_t i = 0; i < MAX_NOTES; i++) {
+        if(notes[i].synth == 0x01) count1++;
+        else if(notes[i].synth == 0x02) count2++;
+    }
+
+    // 空き又は一番古いnoteを取得
+    uint8_t empty = 0;
+    for(uint8_t i = 0; i < MAX_NOTES; i++) {
+        if(notes[i].num == 0) {
+            empty = i;
+            break;
+        }
+        if(notes[i].num == 1) {
+            empty = i;
+        }
+    }
+
+    // もし両方で4音使用されている場合
+    if(count1 == 4 && count2 == 4) {
+        // numの順番を整理する
+        for(uint8_t i = 0; i < MAX_NOTES; i++) {
+            if(notes[empty].num < notes[i].num) {
+                notes[i].num = notes[i].num - 1;
+            }
+        }
+
+        notes[empty].num = 8;
+        notes[empty].id = note;
+        synth = notes[empty].synth;
+    }
+    else {
+        if(count1 <= count2){
+            notes[empty].num = count1 + count2 + 1;
+            notes[empty].id = note;
+            notes[empty].synth = 0x01;
+            synth = 0x01;
+        }else{
+            notes[empty].num = count1 + count2 + 1;
+            notes[empty].id = note;
+            notes[empty].synth = 0x02;
+            synth = 0x02;
+        }
+    }
+
+    return synth;
+}
+
+// notesからノートを削除
+int8_t removeNotesNote(uint8_t note) {
+    int8_t index = getNotesIndex(note);
+    if(index == -1) return -1;
+    int8_t synth = notes[index].synth;
+    
+    // numの順番を整理する
+    for(uint8_t i = 0; i < MAX_NOTES; i++) {
+        if(notes[index].num < notes[i].num) {
+            notes[i].num = notes[i].num - 1;
+        }
+    }
+
+    notes[index].num = 0;
+    notes[index].id = 0xff;
+    notes[index].synth = 0;
+    return synth;
+}
+
 void setup() {
     // 初期化
     for(Note note: notes) {
         note.num = 0;
-        note.id = 0xFF;
+        note.id = 0xff;
         note.synth = 0;
     }
 
@@ -287,14 +376,25 @@ void loop1() {
             }
             // シングルモードで ch=1
             else if(midiChannel == 1 && synthMode == SYNTH_SINGLE) {
+                int8_t synth = -1;
+                
                 // noteOnの場合
                 if(command == SYNTH_NOTE_ON) {
-                    //
+                    synth = setNotesNote(note);
                 }
 
                 // noteOffの場合
                 else if(command == SYNTH_NOTE_OFF) {
-                    //
+                    synth = removeNotesNote(note);
+                }
+
+                if(synth == 1) {
+                    uint8_t data1[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
+                    synthWrite(synth1, S1_I2C_ADDR, data1, sizeof(data1));
+                }
+                else if(synth == 2) {
+                    uint8_t data2[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
+                    synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
                 }
             }
             // デュアルモードで ch=1
