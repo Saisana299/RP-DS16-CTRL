@@ -80,15 +80,15 @@ void receiveEvent(int bytes) {
             response = RES_OK;
             break;
 
-        // 例: {INS_BEGIN, DISP_SET_PRESET, DATA_BEGIN, 0x02, 0x01, 0x01}
-        case DISP_SET_PRESET:
+        // 例: {INS_BEGIN, DISP_SET_SHAPE, DATA_BEGIN, 0x02, 0x01, 0x01}
+        case DISP_SET_SHAPE:
         {
             if(bytes < 6) {
                 response = RES_ERROR;
                 return;
             }
             uint8_t data[] = {
-                INS_BEGIN, SYNTH_SET_PRESET,
+                INS_BEGIN, SYNTH_SET_SHAPE,
                 DATA_BEGIN, 0x01, receivedData[5]
             };
             synthCacheId = receivedData[4];
@@ -148,6 +148,44 @@ void receiveEvent(int bytes) {
                 return;
             }
             uint8_t data[] = {INS_BEGIN, SYNTH_SOUND_STOP};
+            synthCacheId = receivedData[4];
+            for (uint8_t byte: data) {
+                synthCacheData += static_cast<char>(byte);
+            }
+            response = RES_OK;
+        }
+            break;
+
+        // 例: {INS_BEGIN, DISP_SET_ATTACK, DATA_BEGIN, 0x02, 0xff, 0x30}
+        case DISP_SET_ATTACK:
+        {
+            if(bytes < 6) {
+                response = RES_ERROR;
+                return;
+            }
+            uint8_t data[] = {
+                INS_BEGIN, SYNTH_SET_ATTACK,
+                DATA_BEGIN, 0x01, receivedData[5]
+            };
+            synthCacheId = receivedData[4];
+            for (uint8_t byte: data) {
+                synthCacheData += static_cast<char>(byte);
+            }
+            response = RES_OK;
+        }
+            break;
+
+        // 例: {INS_BEGIN, DISP_SET_RELEASE, DATA_BEGIN, 0x02, 0xff, 0x30}
+        case DISP_SET_RELEASE:
+        {
+            if(bytes < 6) {
+                response = RES_ERROR;
+                return;
+            }
+            uint8_t data[] = {
+                INS_BEGIN, SYNTH_SET_RELEASE,
+                DATA_BEGIN, 0x01, receivedData[5]
+            };
             synthCacheId = receivedData[4];
             for (uint8_t byte: data) {
                 synthCacheData += static_cast<char>(byte);
