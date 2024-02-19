@@ -45,8 +45,6 @@ struct Note {
 static const int MAX_NOTES = 8;
 Note notes[MAX_NOTES];
 
-void loop1();
-
 void synthWrite(TwoWire synth, uint8_t addr, const uint8_t * data, size_t size) {
     synth.beginTransmission(addr);
     synth.write(data, size);
@@ -346,13 +344,9 @@ void setup() {
 
     pinMode(DISP_SW_PIN, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(DISP_SW_PIN), dispISR, FALLING);
-
-    multicore_launch_core1(loop1);
 }
 
-void loop() {} // 使用しない
-
-void loop1() {
+void loop() {
     while(1){
         if(!midi.available()) {
             continue;
