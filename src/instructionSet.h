@@ -18,6 +18,8 @@
 #define DISP_RESET_SYNTH 0x43 // シンセをリセット
 #define DISP_SET_ATTACK  0x44 // アタックを設定
 #define DISP_SET_RELEASE 0x45 // リリースを設定
+#define DISP_SET_DECAY   0x46 // ディケイを設定
+#define DISP_SET_SUSTAIN 0x47 // サステインを設定
 
 
 //// SYNTH送信用の命令コード (0x00と0xffは除外) 190~
@@ -28,6 +30,8 @@
 #define SYNTH_SET_PAN     0xC2 // パン(C/L/R)を設定
 #define SYNTH_SET_ATTACK  0xC3 // アタックを設定
 #define SYNTH_SET_RELEASE 0xC4 // リリースを設定
+#define SYNTH_SET_DECAY   0xC5 // ディケイを設定
+#define SYNTH_SET_SUSTAIN 0xC6 // サステインを設定
 
 //// 共通シンセ演奏状態コード
 #define SYNTH_SINGLE 0x00
