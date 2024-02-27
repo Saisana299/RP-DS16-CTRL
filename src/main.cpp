@@ -158,13 +158,20 @@ void receiveEvent(int bytes) {
 
         // 例: {INS_BEGIN, DISP_SET_ATTACK, DATA_BEGIN, 0x06, 0xff, 0x00, 0x60, 0x00, 0x00, 0x00}
         case DISP_SET_ATTACK:
+        case DISP_SET_DECAY:
+        case DISP_SET_RELEASE:
         {
             if(bytes < 10) {
                 response = RES_ERROR;
                 return;
             }
+
+            uint8_t message = SYNTH_SET_ATTACK;
+            if(receivedData[1] == DISP_SET_DECAY) message = SYNTH_SET_DECAY;
+            else if(receivedData[1] == DISP_SET_RELEASE) message = SYNTH_SET_RELEASE;
+
             uint8_t data[] = {
-                INS_BEGIN, SYNTH_SET_ATTACK,
+                INS_BEGIN, message,
                 DATA_BEGIN, 0x05, receivedData[5],
                 receivedData[6], receivedData[7], receivedData[8], receivedData[9]
             };
@@ -176,17 +183,16 @@ void receiveEvent(int bytes) {
         }
             break;
 
-        // 例: {INS_BEGIN, DISP_SET_RELEASE, DATA_BEGIN, 0x06, 0xff, 0x30, 0x00, 0x00, 0x00, 0x00}
-        case DISP_SET_RELEASE:
+        // 例: {INS_BEGIN, DISP_SET_SUSTAIN, DATA_BEGIN, 0x05, 0xff, 0x60, 0x00, 0x00, 0x00}
+        case DISP_SET_SUSTAIN:
         {
-            if(bytes < 10) {
+            if(bytes < 9) {
                 response = RES_ERROR;
                 return;
             }
             uint8_t data[] = {
-                INS_BEGIN, SYNTH_SET_RELEASE,
-                DATA_BEGIN, 0x05, receivedData[5],
-                receivedData[6], receivedData[7], receivedData[8], receivedData[9]
+                INS_BEGIN, SYNTH_SET_SUSTAIN,
+                DATA_BEGIN, 0x05, receivedData[5], receivedData[6], receivedData[7], receivedData[8]
             };
             synthCacheId = receivedData[4];
             for (uint8_t byte: data) {
