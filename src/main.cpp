@@ -35,6 +35,7 @@ TwoWire& disp = Wire;
 // その他
 bool i2c_is_synth = true;
 uint8_t synthMode = SYNTH_SINGLE;
+bool isLed = false;
 
 // モードチェンジ時にリセットする
 struct Note {
@@ -218,7 +219,9 @@ void beginSynth() {
     synth2.setSCL(S2_SCL_PIN);
 
     synth1.begin();
+    synth1.setClock(1000000);
     synth2.begin();
+    synth2.setClock(1000000);
 
     // cache処理
     if(!synthCacheData.equals("")) {
@@ -249,6 +252,7 @@ void beginDisp() {
     disp.setSDA(DISP_SDA_PIN);
     disp.setSCL(DISP_SCL_PIN);
     disp.begin(DISP_I2C_ADDR);
+    disp.setClock(1000000);
     disp.onReceive(receiveEvent);
     disp.onRequest(requestEvent);
 
@@ -257,10 +261,10 @@ void beginDisp() {
 
 void dispISR() {
     if(i2c_is_synth) {
-        digitalWrite(LED_BUILTIN, HIGH);
+        isLed = true;
         beginDisp();
     }else{
-        digitalWrite(LED_BUILTIN, LOW);
+        isLed = false;
         beginSynth();
     }
 }
@@ -401,7 +405,7 @@ void loop() {
             continue;
         }
 
-        digitalWrite(LED_BUILTIN, HIGH);
+        isLed = true;
 
         uint8_t statusByte = midi.read();
         // ノートオン・オフイベントの場合
@@ -484,6 +488,16 @@ void loop() {
             }
         }
         delay(1);
-        digitalWrite(LED_BUILTIN, LOW);
+        isLed = false;
+    }
+}
+
+void loop1() {
+    while (1) {
+        if(isLed) {
+            digitalWrite(LED_BUILTIN, HIGH);
+        } else {
+            digitalWrite(LED_BUILTIN, LOW);
+        }
     }
 }
