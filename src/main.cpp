@@ -487,7 +487,6 @@ void loop() {
                 synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
             }
         }
-        delay(1);
         isLed = false;
     }
 }
