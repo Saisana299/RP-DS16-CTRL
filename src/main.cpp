@@ -34,6 +34,7 @@ TwoWire& disp = Wire;
 
 // その他
 bool i2c_is_synth = true;
+bool i2c_is_debug = false;
 uint8_t synthMode = SYNTH_SINGLE;
 bool isLed = false;
 
@@ -202,12 +203,38 @@ void receiveEvent(int bytes) {
             response = RES_OK;
         }
             break;
+
+        // 例: {INS_BEGIN, DISP_DEBUG_ON}
+        case DISP_DEBUG_ON:
+        {
+            if(bytes < 2) {
+                response = RES_ERROR;
+                return;
+            }
+            // 通信が終わった後にDEBUGモードを有効化
+            synthCacheData = "debug";
+            response = RES_OK;
+        }
+            break;
     }
 }
 
 void requestEvent() {
     disp.write(response);
     response = 0x00;
+}
+
+void beginDebug() {
+    synth1.end();
+    synth2.end();
+
+    // Wire = disp
+    Wire.setSDA(DISP_SDA_PIN);
+    Wire.setSCL(DISP_SCL_PIN);
+    Wire.begin();
+    Wire.setClock(1000000);
+
+    i2c_is_debug = true;
 }
 
 void beginSynth() {
@@ -224,7 +251,10 @@ void beginSynth() {
     synth2.setClock(1000000);
 
     // cache処理
-    if(!synthCacheData.equals("")) {
+    if(synthCacheData.equals("debug")) {
+        beginDebug();
+    }
+    else if(!synthCacheData.equals("")) {
         size_t size = synthCacheData.length();
         uint8_t data[size];
         for (int i = 0; i < size; i++) {
@@ -282,11 +312,10 @@ bool availableMIDI(uint8_t timeout = 100) {
 
 // notes から指定したノートのインデックスを返す
 int8_t getNotesIndex(uint8_t note) {
-    int8_t index = -1;
     for(int8_t i = 0; i < MAX_NOTES; i++) {
-        if(notes[i].id == note) index = i;
+        if(notes[i].id == note) return i;
     }
-    return index;
+    return -1;
 }
 
 // notesにノートを記録
@@ -342,6 +371,11 @@ int8_t setNotesNote(uint8_t note) {
         }
     }
 
+    if(i2c_is_debug) {
+        uint8_t data[] = {INS_BEGIN, SYNTH_NOTE_ON, note, notes[empty].synth, notes[empty].num};
+        synthWrite(Wire, DISP_I2C_ADDR, data, sizeof(data));
+    }
+
     return synth;
 }
 
@@ -354,8 +388,13 @@ int8_t removeNotesNote(uint8_t note) {
     // numの順番を整理する
     for(uint8_t i = 0; i < MAX_NOTES; i++) {
         if(notes[index].num < notes[i].num) {
-            notes[i].num = notes[i].num - 1;
+            notes[i].num--;
         }
+    }
+
+    if(i2c_is_debug) {
+        uint8_t data[] = {INS_BEGIN, SYNTH_NOTE_OFF, note, notes[index].synth, notes[index].num};
+        synthWrite(Wire, DISP_I2C_ADDR, data, sizeof(data));
     }
 
     notes[index].num = 0;
@@ -450,11 +489,11 @@ void loop() {
 
                 if(synth == 1) {
                     uint8_t data1[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
-                    synthWrite(synth1, S1_I2C_ADDR, data1, sizeof(data1));
+                    if(!i2c_is_debug) synthWrite(synth1, S1_I2C_ADDR, data1, sizeof(data1));
                 }
                 else if(synth == 2) {
                     uint8_t data2[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
-                    synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
+                    if(!i2c_is_debug) synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
                 }
             }
             // デュアルモードで ch=1
