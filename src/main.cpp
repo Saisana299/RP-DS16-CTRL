@@ -371,11 +371,6 @@ int8_t setNotesNote(uint8_t note) {
         }
     }
 
-    if(i2c_is_debug) {
-        uint8_t data[] = {INS_BEGIN, SYNTH_NOTE_ON, note, notes[empty].synth, notes[empty].num};
-        synthWrite(Wire, DISP_I2C_ADDR, data, sizeof(data));
-    }
-
     return synth;
 }
 
@@ -390,11 +385,6 @@ int8_t removeNotesNote(uint8_t note) {
         if(notes[index].num < notes[i].num) {
             notes[i].num--;
         }
-    }
-
-    if(i2c_is_debug) {
-        uint8_t data[] = {INS_BEGIN, SYNTH_NOTE_OFF, note, notes[index].synth, notes[index].num};
-        synthWrite(Wire, DISP_I2C_ADDR, data, sizeof(data));
     }
 
     notes[index].num = 0;
@@ -447,6 +437,27 @@ void loop() {
         isLed = true;
 
         uint8_t statusByte = midi.read();
+
+        if (i2c_is_debug) {
+            // 1st
+            uint8_t data[] = {
+                INS_BEGIN, DISP_DEBUG_DATA, DATA_BEGIN, 0x01, statusByte
+            };
+            if(availableMIDI()){
+                // 2nd
+                uint8_t byte2 = midi.read();
+                data = {INS_BEGIN, DISP_DEBUG_DATA, DATA_BEGIN, 0x02, statusByte, byte2};
+            }
+            if(availableMIDI()){
+                // 3rd
+                uint8_t byte3 = midi.read();
+                data = {INS_BEGIN, DISP_DEBUG_DATA, DATA_BEGIN, 0x03, statusByte, byte2, byte3};
+            }
+            synthWrite(Wire, DISP_I2C_ADDR, data, sizeof(data));
+            isLed = false;
+            continue;
+        }
+
         // ノートオン・オフイベントの場合
         if (statusByte == MIDI_CH1_NOTE_ON  || statusByte == MIDI_CH1_NOTE_OFF ||
             statusByte == MIDI_CH2_NOTE_ON  || statusByte == MIDI_CH2_NOTE_OFF ) {
@@ -489,11 +500,11 @@ void loop() {
 
                 if(synth == 1) {
                     uint8_t data1[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
-                    if(!i2c_is_debug) synthWrite(synth1, S1_I2C_ADDR, data1, sizeof(data1));
+                    synthWrite(synth1, S1_I2C_ADDR, data1, sizeof(data1));
                 }
                 else if(synth == 2) {
                     uint8_t data2[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
-                    if(!i2c_is_debug) synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
+                    synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
                 }
             }
             // デュアルモードで ch=1

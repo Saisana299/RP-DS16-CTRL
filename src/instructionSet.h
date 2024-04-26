@@ -21,6 +21,7 @@
 #define DISP_SET_DECAY   0x46 // ディケイを設定
 #define DISP_SET_SUSTAIN 0x47 // サステインを設定
 #define DISP_DEBUG_ON    0x48 // デバッグモードを有効化
+#define DISP_DEBUG_DATA  0x49 // デバッグ用データ
 
 
 //// SYNTH送信用の命令コード (0x00と0xffは除外) 190~
