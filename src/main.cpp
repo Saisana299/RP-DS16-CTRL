@@ -440,27 +440,46 @@ void loop() {
 
         if (i2c_is_debug) {
             uint8_t synth = 0x00;
-            // 1st
-            uint8_t data[] = {
-                INS_BEGIN, DISP_DEBUG_DATA, DATA_BEGIN, 0x02, statusByte, synth
-            };
+            uint8_t byte2 = 0xff;
+            uint8_t byte3 = 0xff;
+            
+            if(availableMIDI()) byte2 = midi.read();
+
             if(availableMIDI()){
-                // 2nd
-                uint8_t byte2 = midi.read();
-                data = {INS_BEGIN, DISP_DEBUG_DATA, DATA_BEGIN, 0x03, statusByte, byte2, synth};
-            }
-            if(availableMIDI()){
-                // 3rd
-                uint8_t byte3 = midi.read();
+                byte3 = midi.read();
                 // ch1 noteOn/noteOff
                 if(statusByte == MIDI_CH1_NOTE_ON) {
                     synth = setNotesNote(byte2);
                 } else if (statusByte == MIDI_CH1_NOTE_OFF) {
                     synth = removeNotesNote(byte2);
                 }
-                data = {INS_BEGIN, DISP_DEBUG_DATA, DATA_BEGIN, 0x04, statusByte, byte2, byte3, synth};
             }
-            synthWrite(Wire, DISP_I2C_ADDR, data, sizeof(data));
+
+            if(byte3 != 0xff) {
+                // 3rd
+                uint8_t data[] = {
+                    INS_BEGIN, DISP_DEBUG_DATA, DATA_BEGIN, 0x04,
+                    statusByte, byte2, byte3, synth
+                };
+                 synthWrite(Wire, DISP_I2C_ADDR, data, sizeof(data));
+            }
+            else if(byte2 != 0xff) {
+                // 2nd
+                uint8_t data[] = {
+                    INS_BEGIN, DISP_DEBUG_DATA, DATA_BEGIN, 0x03,
+                    statusByte, byte2, synth
+                };
+                synthWrite(Wire, DISP_I2C_ADDR, data, sizeof(data));
+            }
+            else {
+                // 1st
+                uint8_t data[] = {
+                    INS_BEGIN, DISP_DEBUG_DATA, DATA_BEGIN, 0x02,
+                    statusByte, synth
+                };
+                synthWrite(Wire, DISP_I2C_ADDR, data, sizeof(data));
+            }
+            
             isLed = false;
             continue;
         }
