@@ -1,411 +1,53 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <debug.h>
-#include <midi1msg.h>
-#include <instructionSet.h>
+#include <midi_msg.h>
+#include <instruction_set.h>
+#include <synth_control.h>
+#include <midi_control.h>
+#include <display_control.h>
+#include <note_manager.h>
 
-// debug 関連
+// uart-debug
 #define DEBUG_MODE 1 //0 or 1
 Debug debug(DEBUG_MODE, Serial2, 8, 9, 115200);
 
-// SYNTH 関連
-#define S1_SDA_PIN 26
-#define S1_SCL_PIN 27
-#define S1_I2C_ADDR 0x08
-#define S2_SDA_PIN 20
-#define S2_SCL_PIN 21
-#define S2_I2C_ADDR 0x09
-
-TwoWire& synth1 = Wire1;
-TwoWire& synth2 = Wire;
-
-// MIDI 関連
-#define MIDI_RX_PIN 1
-
-SerialUART& midi = Serial1;
-
-// DISP 関連
-#define DISP_SW_PIN 11
-#define DISP_SDA_PIN 12
-#define DISP_SCL_PIN 13
-#define DISP_I2C_ADDR 0x0A
-
-TwoWire& disp = Wire;
-
-// その他
+// 共通変数
 bool i2c_is_synth = true;
 bool i2c_is_debug = false;
 uint8_t synthMode = SYNTH_SINGLE;
 bool isLed = false;
-
-// モードチェンジ時にリセットする
-struct Note {
-    uint8_t num;
-    uint8_t id;
-    uint8_t synth; //0x01-0x02
-};
-static const int MAX_NOTES = 8;
-Note notes[MAX_NOTES];
-
-void synthWrite(TwoWire synth, uint8_t addr, const uint8_t * data, size_t size) {
-    synth.beginTransmission(addr);
-    synth.write(data, size);
-    synth.endTransmission();
-}
-
-uint8_t response = 0x00; // レスポンス用
 String synthCacheData = ""; // 次のSYNTH通信開始時に命令を送信するためのキャッシュ
 uint8_t synthCacheId = 0x00; // 〃送信対象(0xffはブロードキャスト)
-void receiveEvent(int bytes) {
-    // 2バイト以上のみ受け付ける
-    if(bytes < 2) return;
+uint8_t response = 0x00; // レスポンス用
 
-    int i = 0;
-    uint8_t receivedData[bytes];
-    while (disp.available()) {
-        uint8_t received = disp.read();
-        receivedData[i] = received;
-        i++;
-        if (i >= bytes) {
-            break;
-        }
-    }
+// 各種制御クラス
+NoteManager note;
+DisplayControl* DisplayControl::instance = nullptr;
+DisplayControl display(
+    &i2c_is_synth, &i2c_is_debug, &synthMode,
+    &synthCacheData, &synthCacheId, &response, &note
+);
+SynthControl synth(&i2c_is_synth, &synthCacheData, &synthCacheId, &display);
+MIDIControl midi(&i2c_is_synth, &i2c_is_debug, &synthMode, &isLed, &note, &synth);
 
-    uint8_t instruction = 0x00; // コード種別
-    if(receivedData[0] == INS_BEGIN) {
-        instruction = receivedData[1];
-    }
-
-    switch (instruction)
-    {
-        case DISP_CONNECT:
-            response = RES_OK;
-            break;
-
-        // 例: {INS_BEGIN, DISP_SET_SHAPE, DATA_BEGIN, 0x02, 0x01, 0x01}
-        case DISP_SET_SHAPE:
-        {
-            if(bytes < 6) {
-                response = RES_ERROR;
-                return;
-            }
-            uint8_t data[] = {
-                INS_BEGIN, SYNTH_SET_SHAPE,
-                DATA_BEGIN, 0x01, receivedData[5]
-            };
-            synthCacheId = receivedData[4];
-            for (uint8_t byte: data) {
-                synthCacheData += static_cast<char>(byte);
-            }
-            response = RES_OK;
-        }
-            break;
-
-        // 例: {INS_BEGIN, DISP_SET_SYNTH, DATA_BEGIN, 0x01, 0x02}
-        case DISP_SET_SYNTH:
-        {
-            if(bytes < 5) {
-                response = RES_ERROR;
-                return;
-            }
-            synthMode = receivedData[4];
-            for(Note note: notes) {
-                note.num = 0;
-                note.id = 0xff;
-                note.synth = 0;
-            }
-            uint8_t data[] = {INS_BEGIN, SYNTH_SOUND_STOP};
-            synthCacheId = 0xff;
-            for (uint8_t byte: data) {
-                synthCacheData += static_cast<char>(byte);
-            }
-            response = RES_OK;
-        }
-            break;
-
-        // 例: {INS_BEGIN, DISP_SET_PAN, DATA_BEGIN, 0x02, 0x02, 0x01}
-        case DISP_SET_PAN:
-        {
-            if(bytes < 6) {
-                response = RES_ERROR;
-                return;
-            }
-            uint8_t data[] = {
-                INS_BEGIN, SYNTH_SET_PAN,
-                DATA_BEGIN, 0x01, receivedData[5]
-            };
-            synthCacheId = receivedData[4];
-            for (uint8_t byte: data) {
-                synthCacheData += static_cast<char>(byte);
-            }
-            response = RES_OK;
-        }
-            break;
-
-        // 例: {INS_BEGIN, DISP_RESET_SYNTH, DATA_BEGIN, 0x01, 0xff}
-        case DISP_RESET_SYNTH:
-        {
-            if(bytes < 5) {
-                response = RES_ERROR;
-                return;
-            }
-            uint8_t data[] = {INS_BEGIN, SYNTH_SOUND_STOP};
-            synthCacheId = receivedData[4];
-            for (uint8_t byte: data) {
-                synthCacheData += static_cast<char>(byte);
-            }
-            response = RES_OK;
-        }
-            break;
-
-        // 例: {INS_BEGIN, DISP_SET_ATTACK, DATA_BEGIN, 0x06, 0xff, 0x00, 0x60, 0x00, 0x00, 0x00}
-        case DISP_SET_ATTACK:
-        case DISP_SET_DECAY:
-        case DISP_SET_RELEASE:
-        {
-            if(bytes < 10) {
-                response = RES_ERROR;
-                return;
-            }
-
-            uint8_t message = SYNTH_SET_ATTACK;
-            if(receivedData[1] == DISP_SET_DECAY) message = SYNTH_SET_DECAY;
-            else if(receivedData[1] == DISP_SET_RELEASE) message = SYNTH_SET_RELEASE;
-
-            uint8_t data[] = {
-                INS_BEGIN, message,
-                DATA_BEGIN, 0x05, receivedData[5],
-                receivedData[6], receivedData[7], receivedData[8], receivedData[9]
-            };
-            synthCacheId = receivedData[4];
-            for (uint8_t byte: data) {
-                synthCacheData += static_cast<char>(byte);
-            }
-            response = RES_OK;
-        }
-            break;
-
-        // 例: {INS_BEGIN, DISP_SET_SUSTAIN, DATA_BEGIN, 0x05, 0xff, 0x60, 0x00, 0x00, 0x00}
-        case DISP_SET_SUSTAIN:
-        {
-            if(bytes < 9) {
-                response = RES_ERROR;
-                return;
-            }
-            uint8_t data[] = {
-                INS_BEGIN, SYNTH_SET_SUSTAIN,
-                DATA_BEGIN, 0x05, receivedData[5], receivedData[6], receivedData[7], receivedData[8]
-            };
-            synthCacheId = receivedData[4];
-            for (uint8_t byte: data) {
-                synthCacheData += static_cast<char>(byte);
-            }
-            response = RES_OK;
-        }
-            break;
-
-        // 例: {INS_BEGIN, DISP_DEBUG_ON}
-        case DISP_DEBUG_ON:
-        {
-            if(bytes < 2) {
-                response = RES_ERROR;
-                return;
-            }
-            // 通信が終わった後にDEBUGモードを有効化
-            synthCacheData = "debug";
-            response = RES_OK;
-        }
-            break;
-    }
-}
-
-void requestEvent() {
-    disp.write(response);
-    response = 0x00;
-}
-
-void beginDebug() {
-    synth1.end();
-    synth2.end();
-
-    // Wire = disp
-    Wire.setSDA(DISP_SDA_PIN);
-    Wire.setSCL(DISP_SCL_PIN);
-    Wire.begin();
-    Wire.setClock(1000000);
-
-    i2c_is_debug = true;
-}
-
-void beginSynth() {
-    disp.end();
-
-    synth1.setSDA(S1_SDA_PIN);
-    synth1.setSCL(S1_SCL_PIN);
-    synth2.setSDA(S2_SDA_PIN);
-    synth2.setSCL(S2_SCL_PIN);
-
-    synth1.begin();
-    synth1.setClock(1000000);
-    synth2.begin();
-    synth2.setClock(1000000);
-
-    // cache処理
-    if(synthCacheData.equals("debug")) {
-        beginDebug();
-    }
-    else if(!synthCacheData.equals("")) {
-        size_t size = synthCacheData.length();
-        uint8_t data[size];
-        for (int i = 0; i < size; i++) {
-            data[i] = static_cast<uint8_t>(synthCacheData[i]);
-        }
-        if (synthCacheId == 0x01) {
-            synthWrite(synth1, S1_I2C_ADDR, data, size);
-        } else if(synthCacheId == 0x02) {
-            synthWrite(synth2, S2_I2C_ADDR, data, size);
-        } else if(synthCacheId == 0xff) {
-            synthWrite(synth1, S1_I2C_ADDR, data, size);
-            synthWrite(synth2, S2_I2C_ADDR, data, size);
-        }
-        synthCacheData = "";
-        synthCacheId = 0x00;
-    }
-
-    i2c_is_synth = true;
-}
-
-void beginDisp() {
-    synth1.end();
-    synth2.end();
-
-    disp.setSDA(DISP_SDA_PIN);
-    disp.setSCL(DISP_SCL_PIN);
-    disp.begin(DISP_I2C_ADDR);
-    disp.setClock(1000000);
-    disp.onReceive(receiveEvent);
-    disp.onRequest(requestEvent);
-
-    i2c_is_synth = false;
-}
+TwoWire& disp = Wire;
 
 void dispISR() {
     if(i2c_is_synth) {
         isLed = true;
-        beginDisp();
+        display.beginDisp();
     }else{
         isLed = false;
-        beginSynth();
+        synth.beginSynth();
     }
-}
-
-bool availableMIDI(uint8_t timeout = 100) {
-    unsigned long startTime = millis();
-    while(!midi.available()) {
-        if(millis() - startTime > timeout) {
-            break;
-        }
-    }
-    if(!midi.available()) return false;
-    return true;
-}
-
-// notes から指定したノートのインデックスを返す
-int8_t getNotesIndex(uint8_t note) {
-    for(int8_t i = 0; i < MAX_NOTES; i++) {
-        if(notes[i].id == note) return i;
-    }
-    return -1;
-}
-
-// notesにノートを記録
-int8_t setNotesNote(uint8_t note) {
-    int8_t index = getNotesIndex(note);
-    if(index != -1) return -1;
-    int8_t synth = -1;
-    
-    // synthの割り当て確認
-    uint8_t count1 = 0;
-    uint8_t count2 = 0;
-    for(uint8_t i = 0; i < MAX_NOTES; i++) {
-        if(notes[i].synth == 0x01) count1++;
-        else if(notes[i].synth == 0x02) count2++;
-    }
-
-    // 空き又は一番古いnoteを取得
-    uint8_t empty = 0;
-    for(uint8_t i = 0; i < MAX_NOTES; i++) {
-        if(notes[i].num == 0) {
-            empty = i;
-            break;
-        }
-        if(notes[i].num == 1) {
-            empty = i;
-        }
-    }
-
-    // もし両方で4音使用されている場合
-    if(count1 == 4 && count2 == 4) {
-        // numの順番を整理する
-        for(uint8_t i = 0; i < MAX_NOTES; i++) {
-            if(notes[empty].num < notes[i].num) {
-                notes[i].num = notes[i].num - 1;
-            }
-        }
-
-        notes[empty].num = 8;
-        notes[empty].id = note;
-        synth = notes[empty].synth;
-    }
-    else {
-        if(count1 <= count2){
-            notes[empty].num = count1 + count2 + 1;
-            notes[empty].id = note;
-            notes[empty].synth = 0x01;
-            synth = 0x01;
-        }else{
-            notes[empty].num = count1 + count2 + 1;
-            notes[empty].id = note;
-            notes[empty].synth = 0x02;
-            synth = 0x02;
-        }
-    }
-
-    return synth;
-}
-
-// notesからノートを削除
-int8_t removeNotesNote(uint8_t note) {
-    int8_t index = getNotesIndex(note);
-    if(index == -1) return -1;
-    int8_t synth = notes[index].synth;
-    
-    // numの順番を整理する
-    for(uint8_t i = 0; i < MAX_NOTES; i++) {
-        if(notes[index].num < notes[i].num) {
-            notes[i].num--;
-        }
-    }
-
-    notes[index].num = 0;
-    notes[index].id = 0xff;
-    notes[index].synth = 0;
-    return synth;
 }
 
 void setup() {
     // 初期化
-    for(Note note: notes) {
-        note.num = 0;
-        note.id = 0xff;
-        note.synth = 0;
-    }
+    synth.beginSynth();
+    midi.begin();
 
-    beginSynth();
-
-    midi.setRX(MIDI_RX_PIN);
-    midi.begin(31250);
-    
     debug.init();
 
     pinMode(LED_BUILTIN, OUTPUT);
@@ -415,11 +57,11 @@ void setup() {
     // １音目にフェードアウトが適用されないため１音鳴らしておく
     uint8_t firstin[] = {INS_BEGIN, SYNTH_NOTE_ON, DATA_BEGIN, 0x02, 0x00, 0x00};
     uint8_t firstout[] = {INS_BEGIN, SYNTH_NOTE_OFF, DATA_BEGIN, 0x02, 0x00, 0x00};
-    synthWrite(synth1, S1_I2C_ADDR, firstin, sizeof(firstin));
-    synthWrite(synth2, S2_I2C_ADDR, firstin, sizeof(firstin));
+    synth.synth1Write(firstin, sizeof(firstin));
+    synth.synth2Write(firstin, sizeof(firstin));
     delay(10);
-    synthWrite(synth1, S1_I2C_ADDR, firstout, sizeof(firstout));
-    synthWrite(synth2, S2_I2C_ADDR, firstout, sizeof(firstout));
+    synth.synth1Write(firstout, sizeof(firstout));
+    synth.synth2Write(firstout, sizeof(firstout));
 
     pinMode(DISP_SW_PIN, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(DISP_SW_PIN), dispISR, FALLING);
@@ -427,143 +69,7 @@ void setup() {
 
 void loop() {
     while(1){
-        if(!midi.available()) {
-            continue;
-        }
-        if(!i2c_is_synth) {
-            continue;
-        }
-
-        isLed = true;
-
-        uint8_t statusByte = midi.read();
-
-        if (i2c_is_debug) {
-            uint8_t synth = 0x00;
-            uint8_t byte2 = 0xff;
-            uint8_t byte3 = 0xff;
-            
-            if(availableMIDI()) byte2 = midi.read();
-
-            if(availableMIDI()){
-                byte3 = midi.read();
-                // ch1 noteOn/noteOff
-                if(statusByte == MIDI_CH1_NOTE_ON) {
-                    synth = setNotesNote(byte2);
-                } else if (statusByte == MIDI_CH1_NOTE_OFF) {
-                    synth = removeNotesNote(byte2);
-                }
-            }
-
-            if(byte3 != 0xff) {
-                // 3rd
-                uint8_t data[] = {
-                    INS_BEGIN, DISP_DEBUG_DATA, DATA_BEGIN, 0x04,
-                    statusByte, byte2, byte3, synth
-                };
-                 synthWrite(Wire, DISP_I2C_ADDR, data, sizeof(data));
-            }
-            else if(byte2 != 0xff) {
-                // 2nd
-                uint8_t data[] = {
-                    INS_BEGIN, DISP_DEBUG_DATA, DATA_BEGIN, 0x03,
-                    statusByte, byte2, synth
-                };
-                synthWrite(Wire, DISP_I2C_ADDR, data, sizeof(data));
-            }
-            else {
-                // 1st
-                uint8_t data[] = {
-                    INS_BEGIN, DISP_DEBUG_DATA, DATA_BEGIN, 0x02,
-                    statusByte, synth
-                };
-                synthWrite(Wire, DISP_I2C_ADDR, data, sizeof(data));
-            }
-            
-            isLed = false;
-            continue;
-        }
-
-        // ノートオン・オフイベントの場合
-        if (statusByte == MIDI_CH1_NOTE_ON  || statusByte == MIDI_CH1_NOTE_OFF ||
-            statusByte == MIDI_CH2_NOTE_ON  || statusByte == MIDI_CH2_NOTE_OFF ) {
-                
-            if(!availableMIDI()) continue;
-            uint8_t note = midi.read();
-
-            if(!availableMIDI()) continue;
-            uint8_t velocity = midi.read();
-
-            uint8_t midiChannel = 1;
-            if( statusByte == MIDI_CH2_NOTE_ON  ||
-                statusByte == MIDI_CH2_NOTE_OFF ) {
-                midiChannel = 2;
-            }
-            bool noteOn = (
-                statusByte == MIDI_CH1_NOTE_ON ||
-                statusByte == MIDI_CH2_NOTE_ON ) && velocity != 0;
-            uint8_t command = noteOn ? SYNTH_NOTE_ON : SYNTH_NOTE_OFF;
-
-        // 鳴らすシンセID=1 //
-            // シングルモード以外で ch=1 (鳴らすのはsynth1)
-            if(midiChannel == 1 && synthMode != SYNTH_SINGLE) {
-                uint8_t data1[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
-                synthWrite(synth1, S1_I2C_ADDR, data1, sizeof(data1));
-            }
-            // シングルモードで ch=1
-            else if(midiChannel == 1 && synthMode == SYNTH_SINGLE) {
-                int8_t synth = -1;
-                
-                // noteOnの場合
-                if(command == SYNTH_NOTE_ON) {
-                    synth = setNotesNote(note);
-                }
-
-                // noteOffの場合
-                else if(command == SYNTH_NOTE_OFF) {
-                    synth = removeNotesNote(note);
-                }
-
-                if(synth == 1) {
-                    uint8_t data1[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
-                    synthWrite(synth1, S1_I2C_ADDR, data1, sizeof(data1));
-                }
-                else if(synth == 2) {
-                    uint8_t data2[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
-                    synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
-                }
-            }
-            // デュアルモードで ch=1
-            else if(midiChannel == 1 && synthMode == SYNTH_DUAL) {
-                uint8_t data1[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
-                synthWrite(synth1, S1_I2C_ADDR, data1, sizeof(data1));
-            }
-
-        // 鳴らすシンセID=2 //
-            // オクターブモードで ch=1
-            if(midiChannel == 1 && synthMode == SYNTH_OCTAVE) {
-                uint8_t data2[] = {
-                    INS_BEGIN,
-                    command,
-                    DATA_BEGIN,
-                    0x02,
-                    static_cast<uint8_t>(note+0x0C),
-                    velocity
-                };
-                synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
-            }
-            // マルチモードで ch=2
-            else if(midiChannel == 2 && synthMode == SYNTH_MULTI) {
-                uint8_t data2[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
-                synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
-            }
-            // デュアルモードで ch=1
-            else if(midiChannel == 1 && synthMode == SYNTH_DUAL) {
-                uint8_t data2[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
-                synthWrite(synth2, S2_I2C_ADDR, data2, sizeof(data2));
-            }
-        }
-        isLed = false;
+        midi.read();
     }
 }
 
