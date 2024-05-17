@@ -1,5 +1,5 @@
-#include <Arduino.h>
 #include <display_control.h>
+#include <wokwi.h>
 
 #ifndef SYNTHCONTROL_H
 #define SYNTHCONTROL_H
@@ -30,12 +30,22 @@ public:
     }
 
     void synth1Write(const uint8_t * data, size_t size) {
+
+        #if WOKWI_MODE == 1
+            return;
+        #endif
+
         synth1.beginTransmission(S1_I2C_ADDR);
         synth1.write(data, size);
         synth1.endTransmission();
     }
 
     void synth2Write(const uint8_t * data, size_t size) {
+
+        #if WOKWI_MODE == 1
+            return;
+        #endif
+
         synth2.beginTransmission(S2_I2C_ADDR);
         synth2.write(data, size);
         synth2.endTransmission();

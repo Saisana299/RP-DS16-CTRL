@@ -1,5 +1,3 @@
-#include <Arduino.h>
-
 #ifndef NOTEMANAGER_H
 #define NOTEMANAGER_H
 
@@ -84,7 +82,7 @@ public:
                 synth = 0x02;
             }
         }
-
+        
         return synth;
     }
 

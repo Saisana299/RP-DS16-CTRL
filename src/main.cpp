@@ -1,16 +1,12 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include <debug.h>
 #include <midi_msg.h>
 #include <instruction_set.h>
 #include <synth_control.h>
 #include <midi_control.h>
 #include <display_control.h>
 #include <note_manager.h>
-
-// uart-debug
-#define DEBUG_MODE 1 //0 or 1
-Debug debug(DEBUG_MODE, Serial2, 8, 9, 115200);
+#include <wokwi.h>
 
 // 共通変数
 bool i2c_is_synth = true;
@@ -48,7 +44,10 @@ void setup() {
     synth.beginSynth();
     midi.begin();
 
-    debug.init();
+    // DebugPin
+    Serial2.setTX(8);
+    Serial2.setRX(9);
+    Serial2.begin(1000000);
 
     pinMode(LED_BUILTIN, OUTPUT);
 
@@ -69,10 +68,21 @@ void setup() {
 
 void loop() {
     while(1){
+
+        #if WOKWI_MODE == 1
+            delay(10);
+            if(isLed) {
+                digitalWrite(LED_BUILTIN, HIGH);
+            } else {
+                digitalWrite(LED_BUILTIN, LOW);
+            }
+        #endif
+
         midi.read();
     }
 }
 
+#if WOKWI_MODE != 1
 void loop1() {
     while (1) {
         if(isLed) {
@@ -82,3 +92,4 @@ void loop1() {
         }
     }
 }
+#endif

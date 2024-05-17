@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include <note_manager.h>
 #include <synth_control.h>
 

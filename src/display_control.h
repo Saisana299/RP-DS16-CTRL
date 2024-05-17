@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include <note_manager.h>
 
 #ifndef DISPLAYCONTROL_H
