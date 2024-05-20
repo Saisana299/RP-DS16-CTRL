@@ -1,5 +1,3 @@
-#include <note_manager.h>
-
 #ifndef DISPLAYCONTROL_H
 #define DISPLAYCONTROL_H
 
@@ -19,7 +17,6 @@ private:
     String* pSynthCacheData;
     uint8_t* pSynthCacheId;
     uint8_t* pResponse;
-    NoteManager* pNote;
 
     static DisplayControl* instance;
 
@@ -34,7 +31,7 @@ private:
 public:
     DisplayControl(
         bool* addr1, bool* addr2, uint8_t* addr3,
-        String* addr4, uint8_t* addr5, uint8_t* addr6, NoteManager* addr7
+        String* addr4, uint8_t* addr5, uint8_t* addr6
     ){
         pI2c_is_synth = addr1;
         pI2c_is_debug = addr2;
@@ -42,7 +39,6 @@ public:
         pSynthCacheData = addr4;
         pSynthCacheId = addr5;
         pResponse = addr6;
-        pNote = addr7;
         instance = this;
     }
 
@@ -131,11 +127,6 @@ public:
                     return;
                 }
                 *pSynthMode = receivedData[4];
-                for(NoteManager::Note note: pNote->notes) {
-                    note.num = 0;
-                    note.id = 0xff;
-                    note.synth = 0;
-                }
                 uint8_t data[] = {INS_BEGIN, SYNTH_SOUND_STOP};
                 *pSynthCacheId = 0xff;
                 for (uint8_t byte: data) {

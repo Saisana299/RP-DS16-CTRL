@@ -1,107 +1,90 @@
+#include <synth_control.h>
+#include <wokwi.h>
+
 #ifndef NOTEMANAGER_H
 #define NOTEMANAGER_H
 
 class NoteManager {
 private:
-    static const int MAX_NOTES = 8;
-
-    // notes から指定したノートのインデックスを返す
-    int8_t getNotesIndex(uint8_t note) {
-        for(int8_t i = 0; i < MAX_NOTES; i++) {
-            if(notes[i].id == note) return i;
-        }
-        return -1;
-    }
-
+    TwoWire& synth1 = Wire1;
+    TwoWire& synth2 = Wire;
 public:
-    // モードチェンジ時にリセットする
-    struct Note {
-        uint8_t num;
-        uint8_t id;
-        uint8_t synth; //0x01-0x02
-    };
-    Note notes[MAX_NOTES];
+    NoteManager() {}
 
-    NoteManager() {
-        for(Note note: notes) {
-            note.num = 0;
-            note.id = 0xff;
-            note.synth = 0;
-        }
-    }
+    uint8_t setNotesNote(uint8_t note) {
+        uint8_t synth = 0x00;
 
-    // notesにノートを記録
-    int8_t setNotesNote(uint8_t note) {
-        int8_t index = getNotesIndex(note);
-        if(index != -1) return -1;
-        int8_t synth = -1;
-        
-        // synthの割り当て確認
-        uint8_t count1 = 0;
-        uint8_t count2 = 0;
-        for(uint8_t i = 0; i < MAX_NOTES; i++) {
-            if(notes[i].synth == 0x01) count1++;
-            else if(notes[i].synth == 0x02) count2++;
-        }
+        #if WOKWI_MODE == 1
+            return 0x01;
+        #endif
 
-        // 空き又は一番古いnoteを取得
-        uint8_t empty = 0;
-        for(uint8_t i = 0; i < MAX_NOTES; i++) {
-            if(notes[i].num == 0) {
-                empty = i;
-                break;
-            }
-            if(notes[i].num == 1) {
-                empty = i;
-            }
-        }
+        // ノートが既に存在するか確認
+        uint8_t data2[] = {INS_BEGIN, SYNTH_IS_NOTE, note};
 
-        // もし両方で4音使用されている場合
-        if(count1 == 4 && count2 == 4) {
-            // numの順番を整理する
-            for(uint8_t i = 0; i < MAX_NOTES; i++) {
-                if(notes[empty].num < notes[i].num) {
-                    notes[i].num = notes[i].num - 1;
-                }
-            }
+        synth1.beginTransmission(S1_I2C_ADDR);
+        synth1.write(data2, sizeof(data2));
+        synth1.endTransmission();
+        synth1.requestFrom(S1_I2C_ADDR, 1);
+        uint8_t result = synth1.read();
+        if(result == 0x01) return 0x01;
 
-            notes[empty].num = 8;
-            notes[empty].id = note;
-            synth = notes[empty].synth;
-        }
-        else {
-            if(count1 <= count2){
-                notes[empty].num = count1 + count2 + 1;
-                notes[empty].id = note;
-                notes[empty].synth = 0x01;
-                synth = 0x01;
-            }else{
-                notes[empty].num = count1 + count2 + 1;
-                notes[empty].id = note;
-                notes[empty].synth = 0x02;
-                synth = 0x02;
-            }
-        }
-        
+        synth2.beginTransmission(S2_I2C_ADDR);
+        synth2.write(data2, sizeof(data2));
+        synth2.endTransmission();
+        synth2.requestFrom(S2_I2C_ADDR, 1);
+        result = synth2.read();
+        if(result == 0x01) return 0x02;
+
+        // それぞれのsynthの使用状況を取得
+        uint8_t data[] = {INS_BEGIN, SYNTH_GET_USED};
+
+        synth1.beginTransmission(S1_I2C_ADDR);
+        synth1.write(data, sizeof(data));
+        synth1.endTransmission();
+        synth1.requestFrom(S1_I2C_ADDR, 1);
+        uint8_t s1 = synth1.read();
+
+        synth2.beginTransmission(S2_I2C_ADDR);
+        synth2.write(data, sizeof(data));
+        synth2.endTransmission();
+        synth2.requestFrom(S2_I2C_ADDR, 1);
+        uint8_t s2 = synth2.read();
+
+        if(s1 >= 4 && s2 >= 4) synth = 0x01;
+        else if(s1 == s2) synth = 0x01;
+        else if(s1 < s2) synth = 0x01;
+        else if(s1 > s2) synth = 0x02;
+        else synth = 0x01;
+
         return synth;
     }
 
-    // notesからノートを削除
-    int8_t removeNotesNote(uint8_t note) {
-        int8_t index = getNotesIndex(note);
-        if(index == -1) return -1;
-        int8_t synth = notes[index].synth;
-        
-        // numの順番を整理する
-        for(uint8_t i = 0; i < MAX_NOTES; i++) {
-            if(notes[index].num < notes[i].num) {
-                notes[i].num--;
-            }
-        }
+    uint8_t removeNotesNote(uint8_t note) {
+        uint8_t synth = 0x00;
 
-        notes[index].num = 0;
-        notes[index].id = 0xff;
-        notes[index].synth = 0;
+        #if WOKWI_MODE == 1
+            return 0x01;
+        #endif
+
+        // noteが存在するシンセを確認
+        uint8_t data[] = {INS_BEGIN, SYNTH_IS_NOTE, note};
+
+        synth1.beginTransmission(S1_I2C_ADDR);
+        synth1.write(data, sizeof(data));
+        synth1.endTransmission();
+        synth1.requestFrom(S1_I2C_ADDR, 1);
+        uint8_t s1 = synth1.read();
+
+        synth2.beginTransmission(S2_I2C_ADDR);
+        synth2.write(data, sizeof(data));
+        synth2.endTransmission();
+        synth2.requestFrom(S2_I2C_ADDR, 1);
+        uint8_t s2 = synth2.read();
+
+        if(s1 == 0x01 && s2 == 0x01) synth = 0xff;
+        else if(s1 == 0x01) synth = 0x01;
+        else if(s2 == 0x01) synth = 0x02;
+
         return synth;
     }
 };

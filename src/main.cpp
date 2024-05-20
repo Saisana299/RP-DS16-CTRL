@@ -22,7 +22,7 @@ NoteManager note;
 DisplayControl* DisplayControl::instance = nullptr;
 DisplayControl display(
     &i2c_is_synth, &i2c_is_debug, &synthMode,
-    &synthCacheData, &synthCacheId, &response, &note
+    &synthCacheData, &synthCacheId, &response
 );
 SynthControl synth(&i2c_is_synth, &synthCacheData, &synthCacheId, &display);
 MIDIControl midi(&i2c_is_synth, &i2c_is_debug, &synthMode, &isLed, &note, &synth);
