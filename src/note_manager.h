@@ -81,9 +81,9 @@ public:
         synth2.requestFrom(S2_I2C_ADDR, 1);
         uint8_t s2 = synth2.read();
 
-        if(s1 == 0x01 && s2 == 0x01) synth = 0xff;
-        else if(s1 == 0x01) synth = 0x01;
+        if(s1 == 0x01) synth = 0x01;
         else if(s2 == 0x01) synth = 0x02;
+        else synth = 0xff;
 
         return synth;
     }

@@ -12,6 +12,7 @@ private:
     bool* pIsLed;
     NoteManager* pNote;
     SynthControl* pSynth;
+    bool* pIsPause;
 
     bool availableMIDI(uint8_t timeout = 100) {
         unsigned long startTime = millis();
@@ -27,7 +28,7 @@ private:
 public:
     MIDIControl(
         bool* addr1, bool* addr2, uint8_t* addr3, bool* addr4,
-        NoteManager* addr5, SynthControl* addr6)
+        NoteManager* addr5, SynthControl* addr6, bool* addr7)
     {
         pI2c_is_synth = addr1;
         pI2c_is_debug = addr2;
@@ -35,6 +36,7 @@ public:
         pIsLed = addr4;
         pNote = addr5;
         pSynth = addr6;
+        pIsPause = addr7;
     }
 
     void begin() {
@@ -43,6 +45,9 @@ public:
     }
 
     void read() {
+        if(*pIsPause) {
+            return;
+        }
         if(!midi.available()) {
             return;
         }

@@ -4,6 +4,7 @@
 #define DATA_SEPARATE 0x81 // データ区切り
 #define RES_OK        0x82 // 処理正常終了
 #define RES_ERROR     0x83 // エラー発生時
+#define DATA_END      0x84 // データ終了
 
 
 //// DISP受信用の命令コード (0x00と0xffは除外) 63~
@@ -22,6 +23,9 @@
 #define DISP_SET_SUSTAIN 0x47 // サステインを設定
 #define DISP_DEBUG_ON    0x48 // デバッグモードを有効化
 #define DISP_DEBUG_DATA  0x49 // デバッグ用データ
+#define DISP_SET_CSHAPE  0x4A // カスタムシェイプを設定
+#define DISP_STOP_SYNTH  0x4B // シンセの制御を停止する
+#define DISP_START_SYNTH 0x4C // シンセの制御を開始する
 
 //// SYNTH送信用の命令コード (0x00と0xffは除外) 190~
 #define SYNTH_NOTE_ON     0xBE // ノートオン
@@ -35,6 +39,7 @@
 #define SYNTH_SET_SUSTAIN 0xC6 // サステインを設定
 #define SYNTH_GET_USED    0xC7 // 鳴っているノート数を取得
 #define SYNTH_IS_NOTE     0xC8 // ノートが存在するか
+#define SYNTH_SET_CSHAPE  0xC9 // カスタムシェイプを設定
 
 //// 共通シンセ演奏状態コード
 #define SYNTH_SINGLE 0x00

@@ -17,6 +17,7 @@ private:
     String* pSynthCacheData;
     uint8_t* pSynthCacheId;
     uint8_t* pResponse;
+    bool* pIsPause;
 
     static DisplayControl* instance;
 
@@ -31,7 +32,7 @@ private:
 public:
     DisplayControl(
         bool* addr1, bool* addr2, uint8_t* addr3,
-        String* addr4, uint8_t* addr5, uint8_t* addr6
+        String* addr4, uint8_t* addr5, uint8_t* addr6, bool* addr7
     ){
         pI2c_is_synth = addr1;
         pI2c_is_debug = addr2;
@@ -39,6 +40,7 @@ public:
         pSynthCacheData = addr4;
         pSynthCacheId = addr5;
         pResponse = addr6;
+        pIsPause = addr7;
         instance = this;
     }
 
@@ -226,6 +228,46 @@ public:
                 }
                 // 通信が終わった後にDEBUGモードを有効化
                 *pSynthCacheData = "debug";
+                *pResponse = RES_OK;
+            }
+                break;
+
+            // 例: {INS_BEGIN, DISP_SET_CSHAPE, DATA_BEGIN, 0x01, 0x02, WAVE_DATA...}
+            case DISP_SET_CSHAPE:
+            {
+                if(bytes < 30) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                receivedData[1] = SYNTH_SET_CSHAPE;
+                *pSynthCacheId = receivedData[4];
+                for (uint8_t byte: receivedData) {
+                    *pSynthCacheData += static_cast<char>(byte);
+                }
+                *pResponse = RES_OK;
+            }
+                break;
+
+            // 例: {INS_BEGIN, DISP_STOP_SYNTH}
+            case DISP_STOP_SYNTH:
+            {
+                if(bytes < 2) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                *pIsPause = true;
+                *pResponse = RES_OK;
+            }
+                break;
+
+            // 例: {INS_BEGIN, DISP_START_SYNTH}
+            case DISP_START_SYNTH:
+            {
+                if(bytes < 2) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                *pIsPause = false;
                 *pResponse = RES_OK;
             }
                 break;

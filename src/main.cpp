@@ -16,16 +16,17 @@ bool isLed = false;
 String synthCacheData = ""; // 次のSYNTH通信開始時に命令を送信するためのキャッシュ
 uint8_t synthCacheId = 0x00; // 〃送信対象(0xffはブロードキャスト)
 uint8_t response = 0x00; // レスポンス用
+bool isPause = false; // シンセの制御が停止中か
 
 // 各種制御クラス
 NoteManager note;
 DisplayControl* DisplayControl::instance = nullptr;
 DisplayControl display(
     &i2c_is_synth, &i2c_is_debug, &synthMode,
-    &synthCacheData, &synthCacheId, &response
+    &synthCacheData, &synthCacheId, &response, &isPause
 );
 SynthControl synth(&i2c_is_synth, &synthCacheData, &synthCacheId, &display);
-MIDIControl midi(&i2c_is_synth, &i2c_is_debug, &synthMode, &isLed, &note, &synth);
+MIDIControl midi(&i2c_is_synth, &i2c_is_debug, &synthMode, &isLed, &note, &synth, &isPause);
 
 TwoWire& disp = Wire;
 
@@ -47,7 +48,7 @@ void setup() {
     // DebugPin
     Serial2.setTX(8);
     Serial2.setRX(9);
-    Serial2.begin(1000000);
+    Serial2.begin(115200);
 
     pinMode(LED_BUILTIN, OUTPUT);
 
