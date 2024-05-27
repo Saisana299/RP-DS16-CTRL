@@ -18,6 +18,7 @@ private:
     uint8_t* pSynthCacheId;
     uint8_t* pResponse;
     bool* pIsPause;
+    bool* pIsDispMidi;
 
     static DisplayControl* instance;
 
@@ -32,7 +33,7 @@ private:
 public:
     DisplayControl(
         bool* addr1, bool* addr2, uint8_t* addr3,
-        String* addr4, uint8_t* addr5, uint8_t* addr6, bool* addr7
+        String* addr4, uint8_t* addr5, uint8_t* addr6, bool* addr7, bool* addr8
     ){
         pI2c_is_synth = addr1;
         pI2c_is_debug = addr2;
@@ -41,6 +42,7 @@ public:
         pSynthCacheId = addr5;
         pResponse = addr6;
         pIsPause = addr7;
+        pIsDispMidi = addr8;
         instance = this;
     }
 
@@ -268,6 +270,68 @@ public:
                     return;
                 }
                 *pIsPause = false;
+                *pResponse = RES_OK;
+            }
+                break;
+
+            // 例: {INS_BEGIN, DISP_SET_VOICE, DATA_BEGIN, 0x03, 0xff, 0x01, 0x01}
+            case DISP_SET_VOICE:
+            {
+                if(bytes < 7) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                uint8_t data[] = {
+                    INS_BEGIN, SYNTH_SET_VOICE,
+                    DATA_BEGIN, 0x02, receivedData[5], receivedData[6]
+                };
+                *pSynthCacheId = receivedData[4];
+                for (uint8_t byte: data) {
+                    *pSynthCacheData += static_cast<char>(byte);
+                }
+                *pResponse = RES_OK;
+            }
+                break;
+
+            // 例: {INS_BEGIN, DISP_SET_DETUNE, DATA_BEGIN, 0x03, 0xff, 0xA0, 0x01}
+            case DISP_SET_DETUNE:
+            {
+                if(bytes < 7) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                uint8_t data[] = {
+                    INS_BEGIN, SYNTH_SET_DETUNE,
+                    DATA_BEGIN, 0x02, receivedData[5], receivedData[6]
+                };
+                *pSynthCacheId = receivedData[4];
+                for (uint8_t byte: data) {
+                    *pSynthCacheData += static_cast<char>(byte);
+                }
+                *pResponse = RES_OK;
+            }
+                break;
+
+            // 例: {INS_BEGIN, DISP_MIDI_ON}
+            case DISP_MIDI_ON:
+            {
+                if(bytes < 2) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                *pIsDispMidi = true;
+                *pResponse = RES_OK;
+            }
+                break;
+
+            // 例: {INS_BEGIN, DISP_MIDI_OFF}
+            case DISP_MIDI_OFF:
+            {
+                if(bytes < 2) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                *pIsDispMidi = false;
                 *pResponse = RES_OK;
             }
                 break;

@@ -5,7 +5,6 @@
 
 class MIDIControl {
 private:
-    SerialUART& midi = Serial1;
     bool* pI2c_is_synth;
     bool* pI2c_is_debug;
     uint8_t* pSynthMode;
@@ -13,22 +12,26 @@ private:
     NoteManager* pNote;
     SynthControl* pSynth;
     bool* pIsPause;
+    bool* pIsDispMidi;
 
     bool availableMIDI(uint8_t timeout = 100) {
+        SerialUART* midi = &Serial1;
+        if(*pIsDispMidi) midi = &Serial2;
+        
         unsigned long startTime = millis();
-        while(!midi.available()) {
+        while(!midi->available()) {
             if(millis() - startTime > timeout) {
                 break;
             }
         }
-        if(!midi.available()) return false;
+        if(!midi->available()) return false;
         return true;
     }
 
 public:
     MIDIControl(
         bool* addr1, bool* addr2, uint8_t* addr3, bool* addr4,
-        NoteManager* addr5, SynthControl* addr6, bool* addr7)
+        NoteManager* addr5, SynthControl* addr6, bool* addr7, bool* addr8)
     {
         pI2c_is_synth = addr1;
         pI2c_is_debug = addr2;
@@ -37,37 +40,40 @@ public:
         pNote = addr5;
         pSynth = addr6;
         pIsPause = addr7;
+        pIsDispMidi = addr8;
     }
 
     void begin() {
-        midi.setRX(MIDI_RX_PIN);
-        midi.begin(31250);
+        SerialUART* midi = &Serial1;
+        if(*pIsDispMidi) midi = &Serial2;
+
+        midi->setRX(MIDI_RX_PIN);
+        midi->begin(31250);
     }
 
     void read() {
-        if(*pIsPause) {
-            return;
-        }
-        if(!midi.available()) {
-            return;
-        }
-        if(!*pI2c_is_synth) {
-            return;
-        }
+        SerialUART* midi = &Serial1;
+        if(*pIsDispMidi) midi = &Serial2;
 
+        if(*pIsPause) return;
+
+        if(!midi->available()) return;
+        
+        if(!*pI2c_is_synth) return;
+        
         *pIsLed = true;
 
-        uint8_t statusByte = midi.read();
+        uint8_t statusByte = midi->read();
 
         if (*pI2c_is_debug) {
             uint8_t synth = 0x00;
             uint8_t byte2 = 0xff;
             uint8_t byte3 = 0xff;
             
-            if(availableMIDI()) byte2 = midi.read();
+            if(availableMIDI()) byte2 = midi->read();
 
             if(availableMIDI()){
-                byte3 = midi.read();
+                byte3 = midi->read();
                 // ch1 noteOn/noteOff
                 if(statusByte == MIDI_CH1_NOTE_ON) {
                     synth = pNote->setNotesNote(byte2);
@@ -116,10 +122,10 @@ public:
             statusByte == MIDI_CH2_NOTE_ON  || statusByte == MIDI_CH2_NOTE_OFF ) {
                 
             if(!availableMIDI()) return;
-            uint8_t note = midi.read();
+            uint8_t note = midi->read();
 
             if(!availableMIDI()) return;
-            uint8_t velocity = midi.read();
+            uint8_t velocity = midi->read();
 
             uint8_t midiChannel = 1;
             if( statusByte == MIDI_CH2_NOTE_ON  ||
