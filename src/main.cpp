@@ -6,7 +6,6 @@
 #include <midi_control.h>
 #include <display_control.h>
 #include <note_manager.h>
-#include <wokwi.h>
 
 // 共通変数
 bool i2c_is_synth = true;
@@ -70,21 +69,10 @@ void setup() {
 
 void loop() {
     while(1){
-
-        #if WOKWI_MODE == 1
-            delay(10);
-            if(isLed) {
-                digitalWrite(LED_BUILTIN, HIGH);
-            } else {
-                digitalWrite(LED_BUILTIN, LOW);
-            }
-        #endif
-
         midi.read();
     }
 }
 
-#if WOKWI_MODE != 1
 void loop1() {
     while (1) {
         if(isLed) {
@@ -94,4 +82,3 @@ void loop1() {
         }
     }
 }
-#endif

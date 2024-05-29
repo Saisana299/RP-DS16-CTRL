@@ -14,10 +14,6 @@ public:
     uint8_t setNotesNote(uint8_t note) {
         uint8_t synth = 0x00;
 
-        #if WOKWI_MODE == 1
-            return 0x01;
-        #endif
-
         // ノートが既に存在するか確認
         uint8_t data2[] = {INS_BEGIN, SYNTH_IS_NOTE, note};
 
@@ -61,10 +57,6 @@ public:
 
     uint8_t removeNotesNote(uint8_t note) {
         uint8_t synth = 0x00;
-
-        #if WOKWI_MODE == 1
-            return 0x01;
-        #endif
 
         // noteが存在するシンセを確認
         uint8_t data[] = {INS_BEGIN, SYNTH_IS_NOTE, note};
