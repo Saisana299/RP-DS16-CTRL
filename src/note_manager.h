@@ -1,5 +1,4 @@
 #include <synth_control.h>
-#include <wokwi.h>
 
 #ifndef NOTEMANAGER_H
 #define NOTEMANAGER_H
