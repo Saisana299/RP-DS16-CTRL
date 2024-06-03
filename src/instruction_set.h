@@ -7,36 +7,27 @@
 #define DATA_END      0x84 // データ終了
 
 
-//// DISP受信用の命令コード (0x00と0xffは除外) 63~
+//// CTRL用の命令コード (0x00と0xffは除外) 63~
 //// 例：{0x7F, 0x40, 0x80, 0x01(データサイズ 1~255), 0x04(データ)}
 ////
 //// データサイズは255が最大だが区切りを利用するとさらに多くのデータを送れます。
 //// 例：{..., 0x80, 0xff, ..., 0x84, 0xff, ...}
-#define DISP_CONNECT     0x3F // 接続開始
-#define DISP_SET_SHAPE   0x40 // 基本波形を設定
-#define DISP_SET_SYNTH   0x41 // シンセモード設定
-#define DISP_SET_PAN     0x42 // パンを設定
-#define DISP_RESET_SYNTH 0x43 // シンセをリセット
-#define DISP_SET_ATTACK  0x44 // アタックを設定
-#define DISP_SET_RELEASE 0x45 // リリースを設定
-#define DISP_SET_DECAY   0x46 // ディケイを設定
-#define DISP_SET_SUSTAIN 0x47 // サステインを設定
-#define DISP_DEBUG_ON    0x48 // デバッグモードを有効化
-#define DISP_DEBUG_DATA  0x49 // デバッグ用データ
-#define DISP_SET_CSHAPE  0x4A // カスタムシェイプを設定
-#define DISP_STOP_SYNTH  0x4B // シンセの制御を停止する
-#define DISP_START_SYNTH 0x4C // シンセの制御を開始する
-#define DISP_SET_VOICE   0x4D // ボイスを設定
-#define DISP_SET_DETUNE  0x4E // デチューンを設定
-#define DISP_MIDI_ON     0x4F // DISPMIDIモードON
-#define DISP_MIDI_OFF    0x50 // DISPMIDIモードOFF
+#define CTRL_CONNECT     0x3F // 接続開始
+#define CTRL_SET_SYNTH   0x40 // シンセモード設定
+#define CTRL_RESET_SYNTH 0x41 // シンセをリセット
+#define CTRL_DEBUG_ON    0x42 // デバッグモードを有効化
+#define CTRL_DEBUG_DATA  0x43 // デバッグ用データ
+#define CTRL_STOP_SYNTH  0x44 // シンセの制御を停止する
+#define CTRL_START_SYNTH 0x45 // シンセの制御を開始する
+#define CTRL_MIDI_ON     0x46 // DISP->CTRL MIDIモードON
+#define CTRL_MIDI_OFF    0x47 // DISP->CTRL MIDIモードOFF
 
-//// SYNTH送信用の命令コード (0x00と0xffは除外) 190~
+//// SYNTH用の命令コード (0x00と0xffは除外) 190~
 #define SYNTH_NOTE_ON     0xBE // ノートオン
 #define SYNTH_NOTE_OFF    0xBF // ノートオフ
 #define SYNTH_SET_SHAPE   0xC0 // 基本波形設定
 #define SYNTH_SOUND_STOP  0xC1 // 音の再生を停止する
-#define SYNTH_SET_PAN     0xC2 // パン(C/L/R)を設定
+#define SYNTH_SET_PAN     0xC2 // パンを設定
 #define SYNTH_SET_ATTACK  0xC3 // アタックを設定
 #define SYNTH_SET_RELEASE 0xC4 // リリースを設定
 #define SYNTH_SET_DECAY   0xC5 // ディケイを設定
@@ -46,6 +37,15 @@
 #define SYNTH_SET_CSHAPE  0xC9 // カスタムシェイプを設定
 #define SYNTH_SET_VOICE   0xCA // ボイスを設定
 #define SYNTH_SET_DETUNE  0xCB // デチューンを設定
+#define SYNTH_SET_SPREAD  0xCC // スプレッドを設定
+#define SYNTH_SET_OCT     0xCD // オクターブを設定
+#define SYNTH_SET_SEMI    0xCE // セミトーンを設定
+#define SYNTH_SET_CENT    0xCF // セントを設定
+#define SYNTH_SET_OSC_PAN 0xD0 // OSCパンを設定
+#define SYNTH_SET_LEVEL   0xD1 // レベルを設定
+#define SYNTH_SET_OSC_LVL 0xD2 // OSCレベルを設定
+#define SYNTH_SET_LPF     0xD2 // ローパスフィルタを設定
+#define SYNTH_SET_HPF     0xD3 // ハイパスフィルタを設定
 
 //// 共通シンセ演奏状態コード
 #define SYNTH_SINGLE 0x00

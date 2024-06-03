@@ -85,7 +85,7 @@ public:
             if(byte3 != 0xff) {
                 // 3rd
                 uint8_t data[] = {
-                    INS_BEGIN, DISP_DEBUG_DATA, DATA_BEGIN, 0x04,
+                    INS_BEGIN, CTRL_DEBUG_DATA, DATA_BEGIN, 0x04,
                     statusByte, byte2, byte3, synth
                 };
                 Wire.beginTransmission(DISP_I2C_ADDR);
@@ -95,7 +95,7 @@ public:
             else if(byte2 != 0xff) {
                 // 2nd
                 uint8_t data[] = {
-                    INS_BEGIN, DISP_DEBUG_DATA, DATA_BEGIN, 0x03,
+                    INS_BEGIN, CTRL_DEBUG_DATA, DATA_BEGIN, 0x03,
                     statusByte, byte2, synth
                 };
                 Wire.beginTransmission(DISP_I2C_ADDR);
@@ -105,7 +105,7 @@ public:
             else {
                 // 1st
                 uint8_t data[] = {
-                    INS_BEGIN, DISP_DEBUG_DATA, DATA_BEGIN, 0x02,
+                    INS_BEGIN, CTRL_DEBUG_DATA, DATA_BEGIN, 0x02,
                     statusByte, synth
                 };
                 Wire.beginTransmission(DISP_I2C_ADDR);

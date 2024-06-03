@@ -100,20 +100,20 @@ public:
 
         switch (instruction)
         {
-            case DISP_CONNECT:
+            case CTRL_CONNECT:
                 *pResponse = RES_OK;
                 break;
 
-            // 例: {INS_BEGIN, DISP_SET_SHAPE, DATA_BEGIN, 0x02, 0x01, 0x01}
-            case DISP_SET_SHAPE:
+            // 例: {INS_BEGIN, SYNTH_SET_SHAPE, DATA_BEGIN, 0x02, 0x01, 0x01, 0x01}
+            case SYNTH_SET_SHAPE:
             {
-                if(bytes < 6) {
+                if(bytes < 7) {
                     *pResponse = RES_ERROR;
                     return;
                 }
                 uint8_t data[] = {
                     INS_BEGIN, SYNTH_SET_SHAPE,
-                    DATA_BEGIN, 0x01, receivedData[5]
+                    DATA_BEGIN, 0x02, receivedData[5], receivedData[6]
                 };
                 *pSynthCacheId = receivedData[4];
                 for (uint8_t byte: data) {
@@ -123,8 +123,8 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, DISP_SET_SYNTH, DATA_BEGIN, 0x01, 0x02}
-            case DISP_SET_SYNTH:
+            // 例: {INS_BEGIN, CTRL_SET_SYNTH, DATA_BEGIN, 0x01, 0x02}
+            case CTRL_SET_SYNTH:
             {
                 if(bytes < 5) {
                     *pResponse = RES_ERROR;
@@ -140,8 +140,8 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, DISP_SET_PAN, DATA_BEGIN, 0x02, 0x02, 0x01}
-            case DISP_SET_PAN:
+            // 例: {INS_BEGIN, SYNTH_SET_PAN, DATA_BEGIN, 0x02, 0x02, 0x01}
+            case SYNTH_SET_PAN:
             {
                 if(bytes < 6) {
                     *pResponse = RES_ERROR;
@@ -159,8 +159,8 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, DISP_RESET_SYNTH, DATA_BEGIN, 0x01, 0xff}
-            case DISP_RESET_SYNTH:
+            // 例: {INS_BEGIN, CTRL_RESET_SYNTH, DATA_BEGIN, 0x01, 0xff}
+            case CTRL_RESET_SYNTH:
             {
                 if(bytes < 5) {
                     *pResponse = RES_ERROR;
@@ -175,19 +175,17 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, DISP_SET_ATTACK, DATA_BEGIN, 0x06, 0xff, 0x00, 0x60, 0x00, 0x00, 0x00}
-            case DISP_SET_ATTACK:
-            case DISP_SET_DECAY:
-            case DISP_SET_RELEASE:
+            // 例: {INS_BEGIN, SYNTH_SET_ATTACK, DATA_BEGIN, 0x06, 0xff, 0x00, 0x60, 0x00, 0x00, 0x00}
+            case SYNTH_SET_ATTACK:
+            case SYNTH_SET_DECAY:
+            case SYNTH_SET_RELEASE:
             {
                 if(bytes < 10) {
                     *pResponse = RES_ERROR;
                     return;
                 }
 
-                uint8_t message = SYNTH_SET_ATTACK;
-                if(receivedData[1] == DISP_SET_DECAY) message = SYNTH_SET_DECAY;
-                else if(receivedData[1] == DISP_SET_RELEASE) message = SYNTH_SET_RELEASE;
+                uint8_t message = receivedData[1];
 
                 uint8_t data[] = {
                     INS_BEGIN, message,
@@ -202,8 +200,8 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, DISP_SET_SUSTAIN, DATA_BEGIN, 0x05, 0xff, 0x60, 0x00, 0x00, 0x00}
-            case DISP_SET_SUSTAIN:
+            // 例: {INS_BEGIN, SYNTH_SET_SUSTAIN, DATA_BEGIN, 0x05, 0xff, 0x60, 0x00, 0x00, 0x00}
+            case SYNTH_SET_SUSTAIN:
             {
                 if(bytes < 9) {
                     *pResponse = RES_ERROR;
@@ -221,8 +219,8 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, DISP_DEBUG_ON}
-            case DISP_DEBUG_ON:
+            // 例: {INS_BEGIN, CTRL_DEBUG_ON}
+            case CTRL_DEBUG_ON:
             {
                 if(bytes < 2) {
                     *pResponse = RES_ERROR;
@@ -234,8 +232,8 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, DISP_SET_CSHAPE, DATA_BEGIN, 0x01, 0x02, WAVE_DATA...}
-            case DISP_SET_CSHAPE:
+            // 例: {INS_BEGIN, SYNTH_SET_CSHAPE, DATA_BEGIN, 0x01, 0x02, WAVE_DATA...}
+            case SYNTH_SET_CSHAPE:
             {
                 if(bytes < 30) {
                     *pResponse = RES_ERROR;
@@ -250,8 +248,8 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, DISP_STOP_SYNTH}
-            case DISP_STOP_SYNTH:
+            // 例: {INS_BEGIN, CTRL_STOP_SYNTH}
+            case CTRL_STOP_SYNTH:
             {
                 if(bytes < 2) {
                     *pResponse = RES_ERROR;
@@ -262,8 +260,8 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, DISP_START_SYNTH}
-            case DISP_START_SYNTH:
+            // 例: {INS_BEGIN, CTRL_START_SYNTH}
+            case CTRL_START_SYNTH:
             {
                 if(bytes < 2) {
                     *pResponse = RES_ERROR;
@@ -274,8 +272,8 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, DISP_SET_VOICE, DATA_BEGIN, 0x03, 0xff, 0x01, 0x01}
-            case DISP_SET_VOICE:
+            // 例: {INS_BEGIN, SYNTH_SET_VOICE, DATA_BEGIN, 0x03, 0xff, 0x01, 0x01}
+            case SYNTH_SET_VOICE:
             {
                 if(bytes < 7) {
                     *pResponse = RES_ERROR;
@@ -293,8 +291,8 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, DISP_SET_DETUNE, DATA_BEGIN, 0x03, 0xff, 0xA0, 0x01}
-            case DISP_SET_DETUNE:
+            // 例: {INS_BEGIN, SYNTH_SET_DETUNE, DATA_BEGIN, 0x03, 0xff, 0xA0, 0x01}
+            case SYNTH_SET_DETUNE:
             {
                 if(bytes < 7) {
                     *pResponse = RES_ERROR;
@@ -312,8 +310,8 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, DISP_MIDI_ON}
-            case DISP_MIDI_ON:
+            // 例: {INS_BEGIN, CTRL_MIDI_ON}
+            case CTRL_MIDI_ON:
             {
                 if(bytes < 2) {
                     *pResponse = RES_ERROR;
@@ -324,14 +322,101 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, DISP_MIDI_OFF}
-            case DISP_MIDI_OFF:
+            // 例: {INS_BEGIN, CTRL_MIDI_OFF}
+            case CTRL_MIDI_OFF:
             {
                 if(bytes < 2) {
                     *pResponse = RES_ERROR;
                     return;
                 }
                 *pIsDispMidi = false;
+                *pResponse = RES_OK;
+            }
+                break;
+
+            // 例: {INS_BEGIN, SYNTH_SET_SPREAD, DATA_BEGIN, 0x03, 0xff, 0xA0, 0x01}
+            case SYNTH_SET_SPREAD:
+            {
+                if(bytes < 7) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                uint8_t data[] = {
+                    INS_BEGIN, SYNTH_SET_SPREAD,
+                    DATA_BEGIN, 0x02, receivedData[5], receivedData[6]
+                };
+                *pSynthCacheId = receivedData[4];
+                for (uint8_t byte: data) {
+                    *pSynthCacheData += static_cast<char>(byte);
+                }
+                *pResponse = RES_OK;
+            }
+                break;
+
+            // 例: {INS_BEGIN, SYNTH_SET_LPF, DATA_BEGIN, 0x0A, 0xff, 0x01, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05}
+            // 例: {INS_BEGIN, SYNTH_SET_LPF, DATA_BEGIN, 0x02, 0xff, 0x00}
+            case SYNTH_SET_LPF:
+            {
+                if(bytes < 6) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                *pSynthCacheId = receivedData[4];
+
+                if(receivedData[3] == 0x0A) {
+                    uint8_t data[] = {
+                        INS_BEGIN, SYNTH_SET_LPF,
+                        DATA_BEGIN, 0x09, receivedData[5],
+                        receivedData[6], receivedData[7], receivedData[8], receivedData[9],
+                        receivedData[10], receivedData[11], receivedData[12], receivedData[13]
+                    };
+                    for (uint8_t byte: data) {
+                        *pSynthCacheData += static_cast<char>(byte);
+                    }
+                } else {
+                    uint8_t data[] = {
+                        INS_BEGIN, SYNTH_SET_LPF,
+                        DATA_BEGIN, 0x01, receivedData[5]
+                    };
+                    for (uint8_t byte: data) {
+                        *pSynthCacheData += static_cast<char>(byte);
+                    }
+                }
+                
+                *pResponse = RES_OK;
+            }
+                break;
+
+            // 例: {INS_BEGIN, SYNTH_SET_HPF, DATA_BEGIN, 0x0A, 0xff, 0x01, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05}
+            // 例: {INS_BEGIN, SYNTH_SET_HPF, DATA_BEGIN, 0x02, 0xff, 0x00}
+            case SYNTH_SET_HPF:
+            {
+                if(bytes < 6) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                *pSynthCacheId = receivedData[4];
+
+                if(receivedData[3] == 0x0A) {
+                    uint8_t data[] = {
+                        INS_BEGIN, SYNTH_SET_HPF,
+                        DATA_BEGIN, 0x09, receivedData[5],
+                        receivedData[6], receivedData[7], receivedData[8], receivedData[9],
+                        receivedData[10], receivedData[11], receivedData[12], receivedData[13]
+                    };
+                    for (uint8_t byte: data) {
+                        *pSynthCacheData += static_cast<char>(byte);
+                    }
+                } else {
+                    uint8_t data[] = {
+                        INS_BEGIN, SYNTH_SET_HPF,
+                        DATA_BEGIN, 0x01, receivedData[5]
+                    };
+                    for (uint8_t byte: data) {
+                        *pSynthCacheData += static_cast<char>(byte);
+                    }
+                }
+                
                 *pResponse = RES_OK;
             }
                 break;
