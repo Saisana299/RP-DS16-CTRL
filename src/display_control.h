@@ -99,18 +99,77 @@ public:
         {
             case CTRL_CONNECT:
                 *pResponse = RES_OK;
-                break;
+                break;    
 
-            // 例: {SYNTH_SET_SHAPE, 0x01, 0x01, 0x01}
-            case SYNTH_SET_SHAPE:
+            // 例: {CTRL_DEBUG_ON}
+            case CTRL_DEBUG_ON:
             {
-                if(bytes < 4) {
+                if(bytes < 1) {
                     *pResponse = RES_ERROR;
                     return;
                 }
-                uint8_t data[] = {
-                    SYNTH_SET_SHAPE, receivedData[2], receivedData[3]
-                };
+                // 通信が終わった後にDEBUGモードを有効化
+                *pSynthCacheData = "debug";
+                *pResponse = RES_OK;
+            }
+                break;
+
+            // 例: {CTRL_STOP_SYNTH}
+            case CTRL_STOP_SYNTH:
+            {
+                if(bytes < 1) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                *pIsPause = true;
+                *pResponse = RES_OK;
+            }
+                break;
+
+            // 例: {CTRL_START_SYNTH}
+            case CTRL_START_SYNTH:
+            {
+                if(bytes < 1) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                *pIsPause = false;
+                *pResponse = RES_OK;
+            }
+                break;
+
+            // 例: {CTRL_MIDI_ON}
+            case CTRL_MIDI_ON:
+            {
+                if(bytes < 1) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                *pIsDispMidi = true;
+                *pResponse = RES_OK;
+            }
+                break;
+
+            // 例: {CTRL_MIDI_OFF}
+            case CTRL_MIDI_OFF:
+            {
+                if(bytes < 1) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                *pIsDispMidi = false;
+                *pResponse = RES_OK;
+            }
+                break;
+
+            // 例: {CTRL_RESET_SYNTH, 0xff}
+            case CTRL_RESET_SYNTH:
+            {
+                if(bytes < 2) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                uint8_t data[] = {SYNTH_SOUND_STOP};
                 *pSynthCacheId = receivedData[1];
                 for (uint8_t byte: data) {
                     *pSynthCacheData += static_cast<char>(byte);
@@ -145,195 +204,6 @@ public:
                 }
                 uint8_t data[] = {
                     SYNTH_SET_PAN, receivedData[2]
-                };
-                *pSynthCacheId = receivedData[1];
-                for (uint8_t byte: data) {
-                    *pSynthCacheData += static_cast<char>(byte);
-                }
-                *pResponse = RES_OK;
-            }
-                break;
-
-            // 例: {CTRL_RESET_SYNTH, 0xff}
-            case CTRL_RESET_SYNTH:
-            {
-                if(bytes < 2) {
-                    *pResponse = RES_ERROR;
-                    return;
-                }
-                uint8_t data[] = {SYNTH_SOUND_STOP};
-                *pSynthCacheId = receivedData[1];
-                for (uint8_t byte: data) {
-                    *pSynthCacheData += static_cast<char>(byte);
-                }
-                *pResponse = RES_OK;
-            }
-                break;
-
-            // 例: {SYNTH_SET_ATTACK, 0xff, 0x00, 0x60, 0x00, 0x00, 0x00}
-            case SYNTH_SET_ATTACK:
-            case SYNTH_SET_DECAY:
-            case SYNTH_SET_RELEASE:
-            {
-                if(bytes < 7) {
-                    *pResponse = RES_ERROR;
-                    return;
-                }
-
-                uint8_t message = receivedData[1];
-
-                uint8_t data[] = {
-                    message, receivedData[2],
-                    receivedData[3], receivedData[4], receivedData[5], receivedData[6]
-                };
-                *pSynthCacheId = receivedData[1];
-                for (uint8_t byte: data) {
-                    *pSynthCacheData += static_cast<char>(byte);
-                }
-                *pResponse = RES_OK;
-            }
-                break;
-
-            // 例: {SYNTH_SET_SUSTAIN, 0xff, 0x60, 0x00, 0x00, 0x00}
-            case SYNTH_SET_SUSTAIN:
-            {
-                if(bytes < 6) {
-                    *pResponse = RES_ERROR;
-                    return;
-                }
-                uint8_t data[] = {
-                    SYNTH_SET_SUSTAIN, receivedData[2], receivedData[3], receivedData[4], receivedData[5]
-                };
-                *pSynthCacheId = receivedData[1];
-                for (uint8_t byte: data) {
-                    *pSynthCacheData += static_cast<char>(byte);
-                }
-                *pResponse = RES_OK;
-            }
-                break;
-
-            // 例: {CTRL_DEBUG_ON}
-            case CTRL_DEBUG_ON:
-            {
-                if(bytes < 1) {
-                    *pResponse = RES_ERROR;
-                    return;
-                }
-                // 通信が終わった後にDEBUGモードを有効化
-                *pSynthCacheData = "debug";
-                *pResponse = RES_OK;
-            }
-                break;
-
-            // 例: {SYNTH_SET_CSHAPE, 0x01, 0x02, WAVE_DATA...}
-            case SYNTH_SET_CSHAPE:
-            {
-                if(bytes < 27) {
-                    *pResponse = RES_ERROR;
-                    return;
-                }
-                receivedData[0] = SYNTH_SET_CSHAPE;
-                *pSynthCacheId = receivedData[1];
-                for (uint8_t byte: receivedData) {
-                    *pSynthCacheData += static_cast<char>(byte);
-                }
-                *pResponse = RES_OK;
-            }
-                break;
-
-            // 例: {CTRL_STOP_SYNTH}
-            case CTRL_STOP_SYNTH:
-            {
-                if(bytes < 1) {
-                    *pResponse = RES_ERROR;
-                    return;
-                }
-                *pIsPause = true;
-                *pResponse = RES_OK;
-            }
-                break;
-
-            // 例: {CTRL_START_SYNTH}
-            case CTRL_START_SYNTH:
-            {
-                if(bytes < 1) {
-                    *pResponse = RES_ERROR;
-                    return;
-                }
-                *pIsPause = false;
-                *pResponse = RES_OK;
-            }
-                break;
-
-            // 例: {SYNTH_SET_VOICE, 0xff, 0x01, 0x01}
-            case SYNTH_SET_VOICE:
-            {
-                if(bytes < 4) {
-                    *pResponse = RES_ERROR;
-                    return;
-                }
-                uint8_t data[] = {
-                    SYNTH_SET_VOICE, receivedData[2], receivedData[3]
-                };
-                *pSynthCacheId = receivedData[1];
-                for (uint8_t byte: data) {
-                    *pSynthCacheData += static_cast<char>(byte);
-                }
-                *pResponse = RES_OK;
-            }
-                break;
-
-            // 例: {SYNTH_SET_DETUNE, 0xff, 0xA0, 0x01}
-            case SYNTH_SET_DETUNE:
-            {
-                if(bytes < 4) {
-                    *pResponse = RES_ERROR;
-                    return;
-                }
-                uint8_t data[] = {
-                    SYNTH_SET_DETUNE, receivedData[2], receivedData[3]
-                };
-                *pSynthCacheId = receivedData[1];
-                for (uint8_t byte: data) {
-                    *pSynthCacheData += static_cast<char>(byte);
-                }
-                *pResponse = RES_OK;
-            }
-                break;
-
-            // 例: {CTRL_MIDI_ON}
-            case CTRL_MIDI_ON:
-            {
-                if(bytes < 1) {
-                    *pResponse = RES_ERROR;
-                    return;
-                }
-                *pIsDispMidi = true;
-                *pResponse = RES_OK;
-            }
-                break;
-
-            // 例: {CTRL_MIDI_OFF}
-            case CTRL_MIDI_OFF:
-            {
-                if(bytes < 1) {
-                    *pResponse = RES_ERROR;
-                    return;
-                }
-                *pIsDispMidi = false;
-                *pResponse = RES_OK;
-            }
-                break;
-
-            // 例: {SYNTH_SET_SPREAD, 0xff, 0xA0, 0x01}
-            case SYNTH_SET_SPREAD:
-            {
-                if(bytes < 4) {
-                    *pResponse = RES_ERROR;
-                    return;
-                }
-                uint8_t data[] = {
-                    SYNTH_SET_SPREAD, receivedData[2], receivedData[3]
                 };
                 *pSynthCacheId = receivedData[1];
                 for (uint8_t byte: data) {
@@ -403,6 +273,131 @@ public:
                     }
                 }
                 
+                *pResponse = RES_OK;
+            }
+                break;
+
+            // 例: {SYNTH_SET_OCT, <synth>, <osc>, <octave>}
+            case SYNTH_SET_OCT:
+            // 例: {SYNTH_SET_SEMI, <synth>, <osc>, <semitone>}
+            case SYNTH_SET_SEMI:
+            // 例: {SYNTH_SET_CENT, <synth>, <osc>, <cent>}
+            case SYNTH_SET_CENT:
+            // 例: {SYNTH_SET_LEVEL, <synth>, <HB_level>, <LB_level>}
+            case SYNTH_SET_LEVEL:
+            // 例: {SYNTH_SET_SPREAD, 0xff, 0xA0, 0x01}
+            case SYNTH_SET_SPREAD:
+            // 例: {SYNTH_SET_DETUNE, 0xff, 0xA0, 0x01}
+            case SYNTH_SET_DETUNE:
+            // 例: {SYNTH_SET_SHAPE, 0x01, 0x01, 0x01}
+            case SYNTH_SET_SHAPE:
+            // 例: {SYNTH_SET_VOICE, 0xff, 0x01, 0x01}
+            case SYNTH_SET_VOICE:
+            {
+                if(bytes < 4) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                uint8_t data[] = {
+                    instruction, receivedData[2], receivedData[3]
+                };
+                *pSynthCacheId = receivedData[1];
+                for (uint8_t byte: data) {
+                    *pSynthCacheData += static_cast<char>(byte);
+                }
+            }
+                break;
+
+            // 例: {SYNTH_SET_OSC_LVL, <synth>, <osc>, <HB_Level>, <LB_Level>}
+            case SYNTH_SET_OSC_LVL:
+            {
+                if(bytes < 5) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                uint8_t data[] = {
+                    SYNTH_SET_OSC_LVL, receivedData[2], receivedData[3], receivedData[4]
+                };
+                *pSynthCacheId = receivedData[1];
+                for (uint8_t byte: data) {
+                    *pSynthCacheData += static_cast<char>(byte);
+                }
+            }
+                break;
+
+            // 例: {SYNTH_SET_SUSTAIN, 0xff, 0x60, 0x00, 0x00, 0x00}
+            case SYNTH_SET_SUSTAIN:
+            {
+                if(bytes < 6) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                uint8_t data[] = {
+                    SYNTH_SET_SUSTAIN, receivedData[2], receivedData[3], receivedData[4], receivedData[5]
+                };
+                *pSynthCacheId = receivedData[1];
+                for (uint8_t byte: data) {
+                    *pSynthCacheData += static_cast<char>(byte);
+                }
+                *pResponse = RES_OK;
+            }
+                break;
+
+            // 例: {SYNTH_SET_ATTACK, 0xff, 0x00, 0x60, 0x00, 0x00, 0x00}
+            case SYNTH_SET_ATTACK:
+            case SYNTH_SET_DECAY:
+            case SYNTH_SET_RELEASE:
+            {
+                if(bytes < 7) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+
+                uint8_t message = receivedData[0];
+
+                uint8_t data[] = {
+                    message, receivedData[2],
+                    receivedData[3], receivedData[4], receivedData[5], receivedData[6]
+                };
+                *pSynthCacheId = receivedData[1];
+                for (uint8_t byte: data) {
+                    *pSynthCacheData += static_cast<char>(byte);
+                }
+                *pResponse = RES_OK;
+            }
+                break;
+
+            // 例: {SYNTH_SET_DELAY, <synth>, <true|false>, <HB_time>, <LB_time>, <HB_level>, <LB_level>, <HB_feedback>, <LB_feedback>}
+            case SYNTH_SET_DELAY:
+            {
+                if(bytes < 9) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                uint8_t data[] = {
+                    SYNTH_SET_DELAY, receivedData[2], receivedData[3],
+                    receivedData[4], receivedData[5], receivedData[6],
+                    receivedData[7], receivedData[8]
+                };
+                *pSynthCacheId = receivedData[1];
+                for (uint8_t byte: data) {
+                    *pSynthCacheData += static_cast<char>(byte);
+                }
+            }
+                break;
+
+            // 例: {SYNTH_SET_CSHAPE, 0x01, 0x02, WAVE_DATA...}
+            case SYNTH_SET_CSHAPE:
+            {
+                if(bytes < 27) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                receivedData[0] = SYNTH_SET_CSHAPE;
+                *pSynthCacheId = receivedData[1];
+                for (uint8_t byte: receivedData) {
+                    *pSynthCacheData += static_cast<char>(byte);
+                }
                 *pResponse = RES_OK;
             }
                 break;
