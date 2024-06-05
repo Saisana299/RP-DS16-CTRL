@@ -85,8 +85,7 @@ public:
             if(byte3 != 0xff) {
                 // 3rd
                 uint8_t data[] = {
-                    INS_BEGIN, CTRL_DEBUG_DATA, DATA_BEGIN, 0x04,
-                    statusByte, byte2, byte3, synth
+                    CTRL_DEBUG_DATA, statusByte, byte2, byte3, synth
                 };
                 Wire.beginTransmission(DISP_I2C_ADDR);
                 Wire.write(data, sizeof(data));
@@ -95,8 +94,7 @@ public:
             else if(byte2 != 0xff) {
                 // 2nd
                 uint8_t data[] = {
-                    INS_BEGIN, CTRL_DEBUG_DATA, DATA_BEGIN, 0x03,
-                    statusByte, byte2, synth
+                    CTRL_DEBUG_DATA, statusByte, byte2, synth
                 };
                 Wire.beginTransmission(DISP_I2C_ADDR);
                 Wire.write(data, sizeof(data));
@@ -105,8 +103,7 @@ public:
             else {
                 // 1st
                 uint8_t data[] = {
-                    INS_BEGIN, CTRL_DEBUG_DATA, DATA_BEGIN, 0x02,
-                    statusByte, synth
+                    CTRL_DEBUG_DATA, statusByte, synth
                 };
                 Wire.beginTransmission(DISP_I2C_ADDR);
                 Wire.write(data, sizeof(data));
@@ -140,7 +137,7 @@ public:
         // 鳴らすシンセID=1 //
             // シングルモード以外で ch=1 (鳴らすのはsynth1)
             if(midiChannel == 1 && *pSynthMode != SYNTH_SINGLE) {
-                uint8_t data1[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
+                uint8_t data1[] = {command, note, velocity};
                 pSynth->synth1Write(data1, sizeof(data1));
             }
             // シングルモードで ch=1
@@ -158,17 +155,17 @@ public:
                 }
 
                 if(synth == 1) {
-                    uint8_t data1[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
+                    uint8_t data1[] = {command, note, velocity};
                     pSynth->synth1Write(data1, sizeof(data1));
                 }
                 else if(synth == 2) {
-                    uint8_t data2[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
+                    uint8_t data2[] = {command, note, velocity};
                     pSynth->synth2Write(data2, sizeof(data2));
                 }
             }
             // デュアルモードで ch=1
             else if(midiChannel == 1 && *pSynthMode == SYNTH_DUAL) {
-                uint8_t data1[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
+                uint8_t data1[] = {command, note, velocity};
                 pSynth->synth1Write(data1, sizeof(data1));
             }
 
@@ -176,10 +173,7 @@ public:
             // オクターブモードで ch=1
             if(midiChannel == 1 && *pSynthMode == SYNTH_OCTAVE) {
                 uint8_t data2[] = {
-                    INS_BEGIN,
                     command,
-                    DATA_BEGIN,
-                    0x02,
                     static_cast<uint8_t>(note+0x0C),
                     velocity
                 };
@@ -187,12 +181,12 @@ public:
             }
             // マルチモードで ch=2
             else if(midiChannel == 2 && *pSynthMode == SYNTH_MULTI) {
-                uint8_t data2[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
+                uint8_t data2[] = {command, note, velocity};
                 pSynth->synth2Write(data2, sizeof(data2));
             }
             // デュアルモードで ch=1
             else if(midiChannel == 1 && *pSynthMode == SYNTH_DUAL) {
-                uint8_t data2[] = {INS_BEGIN, command, DATA_BEGIN, 0x02, note, velocity};
+                uint8_t data2[] = {command, note, velocity};
                 pSynth->synth2Write(data2, sizeof(data2));
             }
         }

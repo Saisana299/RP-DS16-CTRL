@@ -14,7 +14,7 @@ public:
         uint8_t synth = 0x00;
 
         // ノートが既に存在するか確認
-        uint8_t data2[] = {INS_BEGIN, SYNTH_IS_NOTE, note};
+        uint8_t data2[] = {SYNTH_IS_NOTE, note};
 
         synth1.beginTransmission(S1_I2C_ADDR);
         synth1.write(data2, sizeof(data2));
@@ -31,7 +31,7 @@ public:
         if(result == 0x01) return 0x02;
 
         // それぞれのsynthの使用状況を取得
-        uint8_t data[] = {INS_BEGIN, SYNTH_GET_USED};
+        uint8_t data[] = {SYNTH_GET_USED};
 
         synth1.beginTransmission(S1_I2C_ADDR);
         synth1.write(data, sizeof(data));
@@ -58,7 +58,7 @@ public:
         uint8_t synth = 0x00;
 
         // noteが存在するシンセを確認
-        uint8_t data[] = {INS_BEGIN, SYNTH_IS_NOTE, note};
+        uint8_t data[] = {SYNTH_IS_NOTE, note};
 
         synth1.beginTransmission(S1_I2C_ADDR);
         synth1.write(data, sizeof(data));

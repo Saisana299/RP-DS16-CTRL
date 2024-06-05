@@ -79,8 +79,8 @@ public:
     }
 
     void onReceiveEvent(int bytes) {
-        // 2バイト以上のみ受け付ける
-        if(bytes < 2) return;
+        // 1バイト以上のみ受け付ける
+        if(bytes < 1) return;
 
         int i = 0;
         uint8_t receivedData[bytes];
@@ -93,10 +93,7 @@ public:
             }
         }
 
-        uint8_t instruction = 0x00; // コード種別
-        if(receivedData[0] == INS_BEGIN) {
-            instruction = receivedData[1];
-        }
+        uint8_t instruction = receivedData[0];
 
         switch (instruction)
         {
@@ -104,18 +101,17 @@ public:
                 *pResponse = RES_OK;
                 break;
 
-            // 例: {INS_BEGIN, SYNTH_SET_SHAPE, DATA_BEGIN, 0x02, 0x01, 0x01, 0x01}
+            // 例: {SYNTH_SET_SHAPE, 0x01, 0x01, 0x01}
             case SYNTH_SET_SHAPE:
             {
-                if(bytes < 7) {
+                if(bytes < 4) {
                     *pResponse = RES_ERROR;
                     return;
                 }
                 uint8_t data[] = {
-                    INS_BEGIN, SYNTH_SET_SHAPE,
-                    DATA_BEGIN, 0x02, receivedData[5], receivedData[6]
+                    SYNTH_SET_SHAPE, receivedData[2], receivedData[3]
                 };
-                *pSynthCacheId = receivedData[4];
+                *pSynthCacheId = receivedData[1];
                 for (uint8_t byte: data) {
                     *pSynthCacheData += static_cast<char>(byte);
                 }
@@ -123,15 +119,15 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, CTRL_SET_SYNTH, DATA_BEGIN, 0x01, 0x02}
+            // 例: {CTRL_SET_SYNTH, 0x02}
             case CTRL_SET_SYNTH:
             {
-                if(bytes < 5) {
+                if(bytes < 2) {
                     *pResponse = RES_ERROR;
                     return;
                 }
-                *pSynthMode = receivedData[4];
-                uint8_t data[] = {INS_BEGIN, SYNTH_SOUND_STOP};
+                *pSynthMode = receivedData[1];
+                uint8_t data[] = {SYNTH_SOUND_STOP};
                 *pSynthCacheId = 0xff;
                 for (uint8_t byte: data) {
                     *pSynthCacheData += static_cast<char>(byte);
@@ -140,18 +136,17 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, SYNTH_SET_PAN, DATA_BEGIN, 0x02, 0x02, 0x01}
+            // 例: {SYNTH_SET_PAN, 0x02, 0x01}
             case SYNTH_SET_PAN:
             {
-                if(bytes < 6) {
+                if(bytes < 3) {
                     *pResponse = RES_ERROR;
                     return;
                 }
                 uint8_t data[] = {
-                    INS_BEGIN, SYNTH_SET_PAN,
-                    DATA_BEGIN, 0x01, receivedData[5]
+                    SYNTH_SET_PAN, receivedData[2]
                 };
-                *pSynthCacheId = receivedData[4];
+                *pSynthCacheId = receivedData[1];
                 for (uint8_t byte: data) {
                     *pSynthCacheData += static_cast<char>(byte);
                 }
@@ -159,15 +154,15 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, CTRL_RESET_SYNTH, DATA_BEGIN, 0x01, 0xff}
+            // 例: {CTRL_RESET_SYNTH, 0xff}
             case CTRL_RESET_SYNTH:
             {
-                if(bytes < 5) {
+                if(bytes < 2) {
                     *pResponse = RES_ERROR;
                     return;
                 }
-                uint8_t data[] = {INS_BEGIN, SYNTH_SOUND_STOP};
-                *pSynthCacheId = receivedData[4];
+                uint8_t data[] = {SYNTH_SOUND_STOP};
+                *pSynthCacheId = receivedData[1];
                 for (uint8_t byte: data) {
                     *pSynthCacheData += static_cast<char>(byte);
                 }
@@ -175,12 +170,12 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, SYNTH_SET_ATTACK, DATA_BEGIN, 0x06, 0xff, 0x00, 0x60, 0x00, 0x00, 0x00}
+            // 例: {SYNTH_SET_ATTACK, 0xff, 0x00, 0x60, 0x00, 0x00, 0x00}
             case SYNTH_SET_ATTACK:
             case SYNTH_SET_DECAY:
             case SYNTH_SET_RELEASE:
             {
-                if(bytes < 10) {
+                if(bytes < 7) {
                     *pResponse = RES_ERROR;
                     return;
                 }
@@ -188,11 +183,10 @@ public:
                 uint8_t message = receivedData[1];
 
                 uint8_t data[] = {
-                    INS_BEGIN, message,
-                    DATA_BEGIN, 0x05, receivedData[5],
-                    receivedData[6], receivedData[7], receivedData[8], receivedData[9]
+                    message, receivedData[2],
+                    receivedData[3], receivedData[4], receivedData[5], receivedData[6]
                 };
-                *pSynthCacheId = receivedData[4];
+                *pSynthCacheId = receivedData[1];
                 for (uint8_t byte: data) {
                     *pSynthCacheData += static_cast<char>(byte);
                 }
@@ -200,18 +194,17 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, SYNTH_SET_SUSTAIN, DATA_BEGIN, 0x05, 0xff, 0x60, 0x00, 0x00, 0x00}
+            // 例: {SYNTH_SET_SUSTAIN, 0xff, 0x60, 0x00, 0x00, 0x00}
             case SYNTH_SET_SUSTAIN:
             {
-                if(bytes < 9) {
+                if(bytes < 6) {
                     *pResponse = RES_ERROR;
                     return;
                 }
                 uint8_t data[] = {
-                    INS_BEGIN, SYNTH_SET_SUSTAIN,
-                    DATA_BEGIN, 0x05, receivedData[5], receivedData[6], receivedData[7], receivedData[8]
+                    SYNTH_SET_SUSTAIN, receivedData[2], receivedData[3], receivedData[4], receivedData[5]
                 };
-                *pSynthCacheId = receivedData[4];
+                *pSynthCacheId = receivedData[1];
                 for (uint8_t byte: data) {
                     *pSynthCacheData += static_cast<char>(byte);
                 }
@@ -219,10 +212,10 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, CTRL_DEBUG_ON}
+            // 例: {CTRL_DEBUG_ON}
             case CTRL_DEBUG_ON:
             {
-                if(bytes < 2) {
+                if(bytes < 1) {
                     *pResponse = RES_ERROR;
                     return;
                 }
@@ -232,15 +225,15 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, SYNTH_SET_CSHAPE, DATA_BEGIN, 0x01, 0x02, WAVE_DATA...}
+            // 例: {SYNTH_SET_CSHAPE, 0x01, 0x02, WAVE_DATA...}
             case SYNTH_SET_CSHAPE:
             {
-                if(bytes < 30) {
+                if(bytes < 27) {
                     *pResponse = RES_ERROR;
                     return;
                 }
-                receivedData[1] = SYNTH_SET_CSHAPE;
-                *pSynthCacheId = receivedData[4];
+                receivedData[0] = SYNTH_SET_CSHAPE;
+                *pSynthCacheId = receivedData[1];
                 for (uint8_t byte: receivedData) {
                     *pSynthCacheData += static_cast<char>(byte);
                 }
@@ -248,10 +241,10 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, CTRL_STOP_SYNTH}
+            // 例: {CTRL_STOP_SYNTH}
             case CTRL_STOP_SYNTH:
             {
-                if(bytes < 2) {
+                if(bytes < 1) {
                     *pResponse = RES_ERROR;
                     return;
                 }
@@ -260,10 +253,10 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, CTRL_START_SYNTH}
+            // 例: {CTRL_START_SYNTH}
             case CTRL_START_SYNTH:
             {
-                if(bytes < 2) {
+                if(bytes < 1) {
                     *pResponse = RES_ERROR;
                     return;
                 }
@@ -272,18 +265,17 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, SYNTH_SET_VOICE, DATA_BEGIN, 0x03, 0xff, 0x01, 0x01}
+            // 例: {SYNTH_SET_VOICE, 0xff, 0x01, 0x01}
             case SYNTH_SET_VOICE:
             {
-                if(bytes < 7) {
+                if(bytes < 4) {
                     *pResponse = RES_ERROR;
                     return;
                 }
                 uint8_t data[] = {
-                    INS_BEGIN, SYNTH_SET_VOICE,
-                    DATA_BEGIN, 0x02, receivedData[5], receivedData[6]
+                    SYNTH_SET_VOICE, receivedData[2], receivedData[3]
                 };
-                *pSynthCacheId = receivedData[4];
+                *pSynthCacheId = receivedData[1];
                 for (uint8_t byte: data) {
                     *pSynthCacheData += static_cast<char>(byte);
                 }
@@ -291,18 +283,17 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, SYNTH_SET_DETUNE, DATA_BEGIN, 0x03, 0xff, 0xA0, 0x01}
+            // 例: {SYNTH_SET_DETUNE, 0xff, 0xA0, 0x01}
             case SYNTH_SET_DETUNE:
             {
-                if(bytes < 7) {
+                if(bytes < 4) {
                     *pResponse = RES_ERROR;
                     return;
                 }
                 uint8_t data[] = {
-                    INS_BEGIN, SYNTH_SET_DETUNE,
-                    DATA_BEGIN, 0x02, receivedData[5], receivedData[6]
+                    SYNTH_SET_DETUNE, receivedData[2], receivedData[3]
                 };
-                *pSynthCacheId = receivedData[4];
+                *pSynthCacheId = receivedData[1];
                 for (uint8_t byte: data) {
                     *pSynthCacheData += static_cast<char>(byte);
                 }
@@ -310,10 +301,10 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, CTRL_MIDI_ON}
+            // 例: {CTRL_MIDI_ON}
             case CTRL_MIDI_ON:
             {
-                if(bytes < 2) {
+                if(bytes < 1) {
                     *pResponse = RES_ERROR;
                     return;
                 }
@@ -322,10 +313,10 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, CTRL_MIDI_OFF}
+            // 例: {CTRL_MIDI_OFF}
             case CTRL_MIDI_OFF:
             {
-                if(bytes < 2) {
+                if(bytes < 1) {
                     *pResponse = RES_ERROR;
                     return;
                 }
@@ -334,18 +325,17 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, SYNTH_SET_SPREAD, DATA_BEGIN, 0x03, 0xff, 0xA0, 0x01}
+            // 例: {SYNTH_SET_SPREAD, 0xff, 0xA0, 0x01}
             case SYNTH_SET_SPREAD:
             {
-                if(bytes < 7) {
+                if(bytes < 4) {
                     *pResponse = RES_ERROR;
                     return;
                 }
                 uint8_t data[] = {
-                    INS_BEGIN, SYNTH_SET_SPREAD,
-                    DATA_BEGIN, 0x02, receivedData[5], receivedData[6]
+                    SYNTH_SET_SPREAD, receivedData[2], receivedData[3]
                 };
-                *pSynthCacheId = receivedData[4];
+                *pSynthCacheId = receivedData[1];
                 for (uint8_t byte: data) {
                     *pSynthCacheData += static_cast<char>(byte);
                 }
@@ -353,30 +343,28 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, SYNTH_SET_LPF, DATA_BEGIN, 0x0A, 0xff, 0x01, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05}
-            // 例: {INS_BEGIN, SYNTH_SET_LPF, DATA_BEGIN, 0x02, 0xff, 0x00}
+            // 例: {SYNTH_SET_LPF, 0xff, 0x01, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05}
+            // 例: {SYNTH_SET_LPF, 0xff, 0x00}
             case SYNTH_SET_LPF:
             {
-                if(bytes < 6) {
+                if(bytes < 3) {
                     *pResponse = RES_ERROR;
                     return;
                 }
-                *pSynthCacheId = receivedData[4];
+                *pSynthCacheId = receivedData[1];
 
-                if(receivedData[3] == 0x0A) {
+                if(receivedData[2] == 0x01) {
                     uint8_t data[] = {
-                        INS_BEGIN, SYNTH_SET_LPF,
-                        DATA_BEGIN, 0x09, receivedData[5],
-                        receivedData[6], receivedData[7], receivedData[8], receivedData[9],
-                        receivedData[10], receivedData[11], receivedData[12], receivedData[13]
+                        SYNTH_SET_LPF, receivedData[2],
+                        receivedData[3], receivedData[4], receivedData[5], receivedData[6],
+                        receivedData[7], receivedData[8], receivedData[9], receivedData[10]
                     };
                     for (uint8_t byte: data) {
                         *pSynthCacheData += static_cast<char>(byte);
                     }
                 } else {
                     uint8_t data[] = {
-                        INS_BEGIN, SYNTH_SET_LPF,
-                        DATA_BEGIN, 0x01, receivedData[5]
+                        SYNTH_SET_LPF, receivedData[2]
                     };
                     for (uint8_t byte: data) {
                         *pSynthCacheData += static_cast<char>(byte);
@@ -387,30 +375,28 @@ public:
             }
                 break;
 
-            // 例: {INS_BEGIN, SYNTH_SET_HPF, DATA_BEGIN, 0x0A, 0xff, 0x01, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05}
-            // 例: {INS_BEGIN, SYNTH_SET_HPF, DATA_BEGIN, 0x02, 0xff, 0x00}
+            // 例: {SYNTH_SET_HPF, 0xff, 0x01, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05}
+            // 例: {SYNTH_SET_HPF, 0xff, 0x00}
             case SYNTH_SET_HPF:
             {
-                if(bytes < 6) {
+                if(bytes < 3) {
                     *pResponse = RES_ERROR;
                     return;
                 }
-                *pSynthCacheId = receivedData[4];
+                *pSynthCacheId = receivedData[1];
 
-                if(receivedData[3] == 0x0A) {
+                if(receivedData[2] == 0x0A) {
                     uint8_t data[] = {
-                        INS_BEGIN, SYNTH_SET_HPF,
-                        DATA_BEGIN, 0x09, receivedData[5],
-                        receivedData[6], receivedData[7], receivedData[8], receivedData[9],
-                        receivedData[10], receivedData[11], receivedData[12], receivedData[13]
+                        SYNTH_SET_HPF, receivedData[2],
+                        receivedData[3], receivedData[4], receivedData[5], receivedData[6],
+                        receivedData[7], receivedData[8], receivedData[9], receivedData[10]
                     };
                     for (uint8_t byte: data) {
                         *pSynthCacheData += static_cast<char>(byte);
                     }
                 } else {
                     uint8_t data[] = {
-                        INS_BEGIN, SYNTH_SET_HPF,
-                        DATA_BEGIN, 0x01, receivedData[5]
+                        SYNTH_SET_HPF, receivedData[5]
                     };
                     for (uint8_t byte: data) {
                         *pSynthCacheData += static_cast<char>(byte);

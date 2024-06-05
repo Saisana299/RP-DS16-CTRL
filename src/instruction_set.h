@@ -1,11 +1,6 @@
 //// 共通システムコード (予約済み) 127~
-#define INS_BEGIN     0x7F // 命令送信ビット
-#define DATA_BEGIN    0x80 // データ送信ビット
-#define DATA_SEPARATE 0x81 // データ区切り
 #define RES_OK        0x82 // 処理正常終了
 #define RES_ERROR     0x83 // エラー発生時
-#define DATA_END      0x84 // データ終了
-
 
 //// CTRL用の命令コード (0x00と0xffは除外) 63~
 //// 例：{0x7F, 0x40, 0x80, 0x01(データサイズ 1~255), 0x04(データ)}
@@ -41,11 +36,12 @@
 #define SYNTH_SET_OCT     0xCD // オクターブを設定
 #define SYNTH_SET_SEMI    0xCE // セミトーンを設定
 #define SYNTH_SET_CENT    0xCF // セントを設定
-#define SYNTH_SET_OSC_PAN 0xD0 // OSCパンを設定
-#define SYNTH_SET_LEVEL   0xD1 // レベルを設定
-#define SYNTH_SET_OSC_LVL 0xD2 // OSCレベルを設定
+#define SYNTH_SET_LEVEL   0xD0 // レベルを設定
+#define SYNTH_SET_OSC_LVL 0xD1 // OSCレベルを設定
 #define SYNTH_SET_LPF     0xD2 // ローパスフィルタを設定
 #define SYNTH_SET_HPF     0xD3 // ハイパスフィルタを設定
+#define SYNTH_SET_DELAY   0xD4 // ディレイを設定
+
 
 //// 共通シンセ演奏状態コード
 #define SYNTH_SINGLE 0x00

@@ -55,8 +55,8 @@ void setup() {
     delay(10);
 
     // １音目にフェードアウトが適用されないため１音鳴らしておく
-    uint8_t firstin[] = {INS_BEGIN, SYNTH_NOTE_ON, DATA_BEGIN, 0x02, 0x00, 0x00};
-    uint8_t firstout[] = {INS_BEGIN, SYNTH_NOTE_OFF, DATA_BEGIN, 0x02, 0x00, 0x00};
+    uint8_t firstin[] = {SYNTH_NOTE_ON, 0x00, 0x00};
+    uint8_t firstout[] = {SYNTH_NOTE_OFF, 0x00, 0x00};
     synth.synth1Write(firstin, sizeof(firstin));
     synth.synth2Write(firstin, sizeof(firstin));
     delay(10);
