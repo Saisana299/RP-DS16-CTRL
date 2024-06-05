@@ -367,10 +367,11 @@ public:
             }
                 break;
 
-            // 例: {SYNTH_SET_DELAY, <synth>, <true|false>, <HB_time>, <LB_time>, <HB_level>, <LB_level>, <HB_feedback>, <LB_feedback>}
+            // 例: {SYNTH_SET_DELAY, <synth>, 0x00}
+            // 例: {SYNTH_SET_DELAY, <synth>, 0x01, <HB_time>, <LB_time>, <HB_level>, <LB_level>, <HB_feedback>, <LB_feedback>}
             case SYNTH_SET_DELAY:
             {
-                if(bytes < 9) {
+                if(bytes < 3) {
                     *pResponse = RES_ERROR;
                     return;
                 }
