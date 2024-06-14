@@ -29,7 +29,7 @@ private:
     static void receiveWrapper(int bytes) {
         instance->onReceiveEvent(bytes);
     }
-    
+
 public:
     DisplayControl(
         bool* addr1, bool* addr2, uint8_t* addr3,
@@ -99,7 +99,7 @@ public:
         {
             case CTRL_CONNECT:
                 *pResponse = RES_OK;
-                break;    
+                break;
 
             // 例: {CTRL_DEBUG_ON}
             case CTRL_DEBUG_ON:
@@ -215,7 +215,7 @@ public:
 
             // 例: {SYNTH_SET_LPF, 0xff, 0x01, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05}
             // 例: {SYNTH_SET_LPF, 0xff, 0x00}
-            case SYNTH_SET_LPF:
+            case SYNTH_SET_LPF://todo
             {
                 if(bytes < 3) {
                     *pResponse = RES_ERROR;
@@ -240,14 +240,14 @@ public:
                         *pSynthCacheData += static_cast<char>(byte);
                     }
                 }
-                
+
                 *pResponse = RES_OK;
             }
                 break;
 
             // 例: {SYNTH_SET_HPF, 0xff, 0x01, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05}
             // 例: {SYNTH_SET_HPF, 0xff, 0x00}
-            case SYNTH_SET_HPF:
+            case SYNTH_SET_HPF://todo
             {
                 if(bytes < 3) {
                     *pResponse = RES_ERROR;
@@ -272,7 +272,7 @@ public:
                         *pSynthCacheData += static_cast<char>(byte);
                     }
                 }
-                
+
                 *pResponse = RES_OK;
             }
                 break;
@@ -369,7 +369,7 @@ public:
 
             // 例: {SYNTH_SET_DELAY, <synth>, 0x00}
             // 例: {SYNTH_SET_DELAY, <synth>, 0x01, <HB_time>, <LB_time>, <HB_level>, <LB_level>, <HB_feedback>, <LB_feedback>}
-            case SYNTH_SET_DELAY:
+            case SYNTH_SET_DELAY://todo
             {
                 if(bytes < 3) {
                     *pResponse = RES_ERROR;
@@ -398,6 +398,73 @@ public:
                 *pSynthCacheId = receivedData[1];
                 for (uint8_t byte: receivedData) {
                     *pSynthCacheData += static_cast<char>(byte);
+                }
+                *pResponse = RES_OK;
+            }
+                break;
+
+            //例: {SYNTH_SET_MOD, 0x01, 0x01}
+            case SYNTH_SET_MOD:
+            {
+                if(bytes < 3) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                uint8_t data[] = {
+                    SYNTH_SET_MOD, receivedData[2]
+                };
+                *pSynthCacheId = receivedData[1];
+                for (uint8_t byte: data) {
+                    *pSynthCacheData += static_cast<char>(byte);
+                }
+                *pResponse = RES_OK;
+            }
+                break;
+
+            //例: {SYNTH_SET_MONO, 0x01, 0x01}
+            case SYNTH_SET_MONO:
+            {
+                if(bytes < 3) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                uint8_t data[] = {
+                    SYNTH_SET_MONO, receivedData[2]
+                };
+                *pSynthCacheId = receivedData[1];
+                for (uint8_t byte: data) {
+                    *pSynthCacheData += static_cast<char>(byte);
+                }
+                *pResponse = RES_OK;
+            }
+                break;
+
+            //例: {SYNTH_SET_GLIDE, 0x01, 0x00}
+            //例: {SYNTH_SET_GLIDE, 0x01, 0x01, 0x40, 0x22}
+            case SYNTH_SET_GLIDE:
+            {
+                if(bytes < 3) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                *pSynthCacheId = receivedData[1];
+
+                if(receivedData[2] == 0x01) {
+                    uint8_t data[] = {
+                        SYNTH_SET_GLIDE, receivedData[2],
+                        receivedData[3], receivedData[4]
+                    };
+                    for (uint8_t byte: data) {
+                        *pSynthCacheData += static_cast<char>(byte);
+                    }
+                }
+                else {
+                    uint8_t data[] = {
+                        SYNTH_SET_GLIDE, receivedData[2]
+                    };
+                    for (uint8_t byte: data) {
+                        *pSynthCacheData += static_cast<char>(byte);
+                    }
                 }
                 *pResponse = RES_OK;
             }

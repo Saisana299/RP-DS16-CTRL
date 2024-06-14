@@ -17,7 +17,7 @@ private:
     bool availableMIDI(uint8_t timeout = 100) {
         SerialUART* midi = &Serial1;
         if(*pIsDispMidi) midi = &Serial2;
-        
+
         unsigned long startTime = millis();
         while(!midi->available()) {
             if(millis() - startTime > timeout) {
@@ -58,9 +58,9 @@ public:
         if(*pIsPause) return;
 
         if(!midi->available()) return;
-        
+
         if(!*pI2c_is_synth) return;
-        
+
         *pIsLed = true;
 
         uint8_t statusByte = midi->read();
@@ -69,7 +69,7 @@ public:
             uint8_t synth = 0x00;
             uint8_t byte2 = 0xff;
             uint8_t byte3 = 0xff;
-            
+
             if(availableMIDI()) byte2 = midi->read();
 
             if(availableMIDI()){
@@ -109,7 +109,7 @@ public:
                 Wire.write(data, sizeof(data));
                 Wire.endTransmission();
             }
-            
+
             *pIsLed = false;
             return;
         }
@@ -117,7 +117,7 @@ public:
         // ノートオン・オフイベントの場合
         if (statusByte == MIDI_CH1_NOTE_ON  || statusByte == MIDI_CH1_NOTE_OFF ||
             statusByte == MIDI_CH2_NOTE_ON  || statusByte == MIDI_CH2_NOTE_OFF ) {
-                
+
             if(!availableMIDI()) return;
             uint8_t note = midi->read();
 
@@ -135,15 +135,15 @@ public:
             uint8_t command = noteOn ? SYNTH_NOTE_ON : SYNTH_NOTE_OFF;
 
         // 鳴らすシンセID=1 //
-            // シングルモード以外で ch=1 (鳴らすのはsynth1)
-            if(midiChannel == 1 && *pSynthMode != SYNTH_SINGLE) {
+            // モノ・デュアル・マルチで ch=1
+            if(midiChannel == 1 && *pSynthMode != SYNTH_POLY) {
                 uint8_t data1[] = {command, note, velocity};
                 pSynth->synth1Write(data1, sizeof(data1));
             }
-            // シングルモードで ch=1
-            else if(midiChannel == 1 && *pSynthMode == SYNTH_SINGLE) {
+            // ポリモードで ch=1
+            else if(midiChannel == 1 && *pSynthMode == SYNTH_POLY) {
                 int8_t synth = -1;
-                
+
                 // noteOnの場合
                 if(command == SYNTH_NOTE_ON) {
                     synth = pNote->setNotesNote(note);
@@ -163,20 +163,11 @@ public:
                     pSynth->synth2Write(data2, sizeof(data2));
                 }
             }
-            // デュアルモードで ch=1
-            else if(midiChannel == 1 && *pSynthMode == SYNTH_DUAL) {
-                uint8_t data1[] = {command, note, velocity};
-                pSynth->synth1Write(data1, sizeof(data1));
-            }
 
         // 鳴らすシンセID=2 //
-            // オクターブモードで ch=1
-            if(midiChannel == 1 && *pSynthMode == SYNTH_OCTAVE) {
-                uint8_t data2[] = {
-                    command,
-                    static_cast<uint8_t>(note+0x0C),
-                    velocity
-                };
+            // モノモードで ch=2
+            if(midiChannel == 2 && *pSynthMode == SYNTH_MONO) {
+                uint8_t data2[] = {command, note, velocity};
                 pSynth->synth2Write(data2, sizeof(data2));
             }
             // マルチモードで ch=2

@@ -10,7 +10,7 @@
 // 共通変数
 bool i2c_is_synth = true;
 bool i2c_is_debug = false;
-uint8_t synthMode = SYNTH_SINGLE;
+uint8_t synthMode = SYNTH_POLY;
 bool isLed = false;
 String synthCacheData = ""; // 次のSYNTH通信開始時に命令を送信するためのキャッシュ
 uint8_t synthCacheId = 0x00; // 〃送信対象(0xffはブロードキャスト)
