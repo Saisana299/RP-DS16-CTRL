@@ -145,6 +145,10 @@ public:
                     *pResponse = RES_ERROR;
                     return;
                 }
+                Serial2.end();
+                Serial2.setTX(4);
+                Serial2.setRX(5);
+                Serial2.begin(115200);
                 *pIsDispMidi = true;
                 *pResponse = RES_OK;
             }
@@ -157,6 +161,10 @@ public:
                     *pResponse = RES_ERROR;
                     return;
                 }
+                Serial2.end();
+                Serial2.setTX(8);
+                Serial2.setRX(9);
+                Serial2.begin(115200);
                 *pIsDispMidi = false;
                 *pResponse = RES_OK;
             }
