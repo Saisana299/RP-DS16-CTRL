@@ -1,5 +1,5 @@
 # RP-DS16-CTRL
-[![GitHub license](https://img.shields.io/badge/RP--DS16-Rev.2.0-seagreen)](https://github.com/Saisana299/RP-DS16)　
+[![GitHub license](https://img.shields.io/badge/RP--DS16-Rev.3.0-seagreen)](https://github.com/Saisana299/RP-DS16)　
 
 RP2040を利用したWavetableシンセ「RP-DS16」のシンセ制御部  
 MIDI-IN処理、RP-DS16-SYNTH制御
