@@ -17,16 +17,17 @@ uint8_t synthCacheId = 0x00; // 〃送信対象(0xffはブロードキャスト)
 uint8_t response = 0x00; // レスポンス用
 bool isPause = false; // シンセの制御が停止中か
 bool isDispMidi = false; // DISP-MIDIモード中か
+bool isWaitingInit = false; // dispmidiが解除された後の初期化待ち
 
 // 各種制御クラス
 NoteManager note;
 DisplayControl* DisplayControl::instance = nullptr;
 DisplayControl display(
     &i2c_is_synth, &i2c_is_debug, &synthMode,
-    &synthCacheData, &synthCacheId, &response, &isPause, &isDispMidi
+    &synthCacheData, &synthCacheId, &response, &isPause, &isDispMidi, &isWaitingInit
 );
 SynthControl synth(&i2c_is_synth, &synthCacheData, &synthCacheId, &display);
-MIDIControl midi(&i2c_is_synth, &i2c_is_debug, &synthMode, &isLed, &note, &synth, &isPause, &isDispMidi);
+MIDIControl midi(&i2c_is_synth, &i2c_is_debug, &synthMode, &isLed, &note, &synth, &isPause, &isDispMidi, &isWaitingInit);
 
 TwoWire& disp = Wire;
 

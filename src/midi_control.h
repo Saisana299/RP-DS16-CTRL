@@ -13,6 +13,7 @@ private:
     SynthControl* pSynth;
     bool* pIsPause;
     bool* pIsDispMidi;
+    bool* pIsWaitingInit;
 
     bool availableMIDI(uint8_t timeout = 100) {
         SerialUART* midi = &Serial1;
@@ -31,7 +32,7 @@ private:
 public:
     MIDIControl(
         bool* addr1, bool* addr2, uint8_t* addr3, bool* addr4,
-        NoteManager* addr5, SynthControl* addr6, bool* addr7, bool* addr8)
+        NoteManager* addr5, SynthControl* addr6, bool* addr7, bool* addr8, bool* addr9)
     {
         pI2c_is_synth = addr1;
         pI2c_is_debug = addr2;
@@ -41,6 +42,7 @@ public:
         pSynth = addr6;
         pIsPause = addr7;
         pIsDispMidi = addr8;
+        pIsWaitingInit = addr9;
     }
 
     void begin() {
@@ -52,6 +54,15 @@ public:
     }
 
     void read() {
+        // dispmidiモードが解除されたときに実行する
+        if(*pIsWaitingInit){
+            Serial2.end();
+            Serial2.setTX(8);
+            Serial2.setRX(9);
+            Serial2.begin(115200);
+            *pIsWaitingInit = false;
+        }
+
         SerialUART* midi = &Serial1;
         if(*pIsDispMidi) midi = &Serial2;
 

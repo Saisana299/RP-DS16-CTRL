@@ -19,6 +19,7 @@ private:
     uint8_t* pResponse;
     bool* pIsPause;
     bool* pIsDispMidi;
+    bool* pIsWaitingInit;
 
     static DisplayControl* instance;
 
@@ -33,7 +34,7 @@ private:
 public:
     DisplayControl(
         bool* addr1, bool* addr2, uint8_t* addr3,
-        String* addr4, uint8_t* addr5, uint8_t* addr6, bool* addr7, bool* addr8
+        String* addr4, uint8_t* addr5, uint8_t* addr6, bool* addr7, bool* addr8, bool* addr9
     ){
         pI2c_is_synth = addr1;
         pI2c_is_debug = addr2;
@@ -43,6 +44,7 @@ public:
         pResponse = addr6;
         pIsPause = addr7;
         pIsDispMidi = addr8;
+        pIsWaitingInit = addr9;
         instance = this;
     }
 
@@ -145,6 +147,7 @@ public:
                     *pResponse = RES_ERROR;
                     return;
                 }
+
                 Serial2.end();
                 Serial2.setTX(4);
                 Serial2.setRX(5);
@@ -161,12 +164,9 @@ public:
                     *pResponse = RES_ERROR;
                     return;
                 }
-                Serial2.end();
-                Serial2.setTX(8);
-                Serial2.setRX(9);
-                Serial2.begin(115200);
                 *pIsDispMidi = false;
                 *pResponse = RES_OK;
+                *pIsWaitingInit = true;
             }
                 break;
 
