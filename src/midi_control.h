@@ -53,6 +53,11 @@ public:
         midi->begin(31250);
     }
 
+    /**
+     * @brief MIDI信号を受け取る
+     * 通常時は外部MIDI信号を受け取り処理します。
+     * ディスプレイMIDIモード時はDISPからMIDI信号を受け取ります。
+     */
     void read() {
         // dispmidiモードが解除されたときに実行する
         if(*pIsWaitingInit){

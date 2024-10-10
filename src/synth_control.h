@@ -19,13 +19,15 @@ private:
     String* pSynthCacheData;
     uint8_t* pSynthCacheId;
     DisplayControl* pDisplay;
+    bool* pIsLock;
 
 public:
-    SynthControl(bool* addr1, String* addr2, uint8_t* addr3, DisplayControl* addr4) {
+    SynthControl(bool* addr1, String* addr2, uint8_t* addr3, DisplayControl* addr4, bool* addr5) {
         pI2c_is_synth = addr1;
         pSynthCacheData = addr2;
         pSynthCacheId = addr3;
         pDisplay = addr4;
+        pIsLock = addr5;
     }
 
     void synth1Write(const uint8_t * data, size_t size) {
@@ -40,8 +42,14 @@ public:
         synth2.endTransmission();
     }
 
-    void beginSynth() {//synthCacheData 
-        disp.end();//todo
+    /**
+     * @brief シンセ通信モード開始
+     * シンセ通信モード切替と同時に溜まったcachedataを送信します。
+     */
+    void beginSynth() {
+        disp.end();
+
+        *pIsLock = true;
 
         synth1.setSDA(S1_SDA_PIN);
         synth1.setSCL(S1_SCL_PIN);
@@ -74,6 +82,8 @@ public:
             *pSynthCacheData = "";
             *pSynthCacheId = 0x00;
         }
+
+        *pIsLock = false;
 
         *pI2c_is_synth = true;
     }

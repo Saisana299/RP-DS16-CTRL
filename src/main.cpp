@@ -18,6 +18,7 @@ uint8_t response = 0x00; // レスポンス用
 bool isPause = false; // シンセの制御が停止中か
 bool isDispMidi = false; // DISP-MIDIモード中か
 bool isWaitingInit = false; // dispmidiが解除された後の初期化待ち
+bool isLock = false; // シンセとの通信中はTrue
 
 // 各種制御クラス
 NoteManager note;
@@ -26,13 +27,19 @@ DisplayControl display(
     &i2c_is_synth, &i2c_is_debug, &synthMode,
     &synthCacheData, &synthCacheId, &response, &isPause, &isDispMidi, &isWaitingInit
 );
-SynthControl synth(&i2c_is_synth, &synthCacheData, &synthCacheId, &display);
+SynthControl synth(&i2c_is_synth, &synthCacheData, &synthCacheId, &display, &isLock);
 MIDIControl midi(&i2c_is_synth, &i2c_is_debug, &synthMode, &isLed, &note, &synth, &isPause, &isDispMidi, &isWaitingInit);
 
 TwoWire& disp = Wire;
 
+/**
+ * @brief DISPから通信切り替えピンに信号が来た時に呼び出される
+ * シンセ通信モードの時、シンセと通信中なら待機してから切り替える。
+ * DISP通信モードの時は、直ちにシンセ通信モードに切り替える。
+ */
 void dispISR() {
     if(i2c_is_synth) {
+        while(isLock);
         isLed = true;
         display.beginDisp();
     }else{
@@ -68,12 +75,20 @@ void setup() {
     attachInterrupt(digitalPinToInterrupt(DISP_SW_PIN), dispISR, FALLING);
 }
 
+/**
+ * @brief メインループ
+ * MIDI信号を読む
+ */
 void loop() {
     while(1){
         midi.read();
     }
 }
 
+/**
+ * @brief Core1ループ
+ * LEDのON/OFFを切り替える
+ */
 void loop1() {
     while (1) {
         if(isLed) {

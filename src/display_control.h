@@ -48,6 +48,10 @@ public:
         instance = this;
     }
 
+    /**
+     * @brief デバッグモードを有効にする
+     * todo
+     */
     void beginDebug() {
         synth1.end();
         synth2.end();
@@ -61,6 +65,10 @@ public:
         *pI2c_is_debug = true;
     }
 
+    /**
+     * @brief ディスプレイ通信モードを有効にする
+     * シンセとの通信を遮断してDISPとの通信に切り替えます。
+     */
     void beginDisp() {
         synth1.end();
         synth2.end();
@@ -75,11 +83,20 @@ public:
         *pI2c_is_synth = false;
     }
 
+    /**
+     * @brief DISPからのリクエストイベント
+     * 1バイトの情報、*pResponseを返します。
+     */
     void onRequestEvent() {
         disp.write(*pResponse);
         *pResponse = 0x00;
     }
 
+    /**
+     * @brief DISPからの命令イベント
+     * CTRL、SYNTHに向けた命令を受け取り処理します。
+     * @param bytes 受け取ったデータのバイト数
+     */
     void onReceiveEvent(int bytes) {
         // 1バイト以上のみ受け付ける
         if(bytes < 1) return;
@@ -473,6 +490,22 @@ public:
                     for (uint8_t byte: data) {
                         *pSynthCacheData += static_cast<char>(byte);
                     }
+                }
+                *pResponse = RES_OK;
+            }
+                break;
+
+            // 例: {SYNTH_RESET_PARAM, 0x01}
+            case SYNTH_RESET_PARAM:
+            {
+                if(bytes < 2) {
+                    *pResponse = RES_ERROR;
+                    return;
+                }
+                uint8_t data[] = {SYNTH_RESET_PARAM};
+                *pSynthCacheId = receivedData[1];
+                for (uint8_t byte: data) {
+                    *pSynthCacheData += static_cast<char>(byte);
                 }
                 *pResponse = RES_OK;
             }
