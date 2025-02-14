@@ -15,7 +15,8 @@
         "ostream": "cpp",
         "streambuf": "cpp",
         "cstddef": "cpp",
-        "type_traits": "cpp"
+        "type_traits": "cpp",
+        "cstdint": "cpp"
     },
     "codeium.enableConfig": {
         "*": true

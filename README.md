@@ -4,6 +4,10 @@
 RP2040を利用したWavetableシンセ「RP-DS16」のシンセ制御部  
 MIDI-IN処理、RP-DS16-SYNTH制御
 
+<span style="font-size: 200%;">This project has been suspended.</span>  
+<span style="font-size: 200%;">Successor project : [Cranberry-Synth](https://github.com/Saisana299/Cranberry-Synth)</span>
+
+
 ## 概要
 - RP2040
     - オーバークロック - 200MHz
